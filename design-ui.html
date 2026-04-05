@@ -17,13 +17,13 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .theme-bg { background-color: #EEF5F0; } 
-        .theme-card-white { background-color: #FFFFFF; } 
-        .theme-accent-yellow { background-color: #FDF7E3; } 
-        .theme-dark-green { background-color: #2C5E43; } 
-        .theme-light-green { background-color: #D4E5D9; } 
-        .text-dark-green { color: #1B3827; } 
-        .text-muted-green { color: #6E8F7A; } 
+        .theme-bg { background-color: #EEF5F0; }
+        .theme-card-white { background-color: #FFFFFF; }
+        .theme-accent-yellow { background-color: #FDF7E3; }
+        .theme-dark-green { background-color: #2C5E43; }
+        .theme-light-green { background-color: #D4E5D9; }
+        .text-dark-green { color: #1B3827; }
+        .text-muted-green { color: #6E8F7A; }
 
         .soft-shadow { box-shadow: 0 8px 24px rgba(44, 94, 67, 0.04); }
         .card-hover:active { transform: scale(0.96); transition: transform 0.2s ease; }
@@ -39,7 +39,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        
+
         /* 模糊遮罩（用于遮挡听写词语） */
         .blur-text { filter: blur(6px); user-select: none; transition: filter 0.3s ease; }
         .blur-text.revealed { filter: blur(0px); }
@@ -48,7 +48,7 @@
 <body class="flex justify-center items-center min-h-screen">
 
     <div class="w-full max-w-[400px] h-[100dvh] sm:h-[850px] theme-bg sm:rounded-[3rem] sm:shadow-2xl relative overflow-hidden flex flex-col sm:border-[8px] sm:border-[#1B3827]">
-        
+
         <div class="h-12 w-full flex justify-between items-center px-6 pt-2 text-dark-green font-medium text-sm z-10 shrink-0">
             <span>08:30</span>
             <div class="flex items-center gap-1.5 opacity-80">
@@ -58,14 +58,23 @@
             </div>
         </div>
 
-        <!-- 升级点1：屏幕右侧边缘悬浮的 AI 小助手 -->
-        <div onclick="openAiModal()" class="absolute right-0 top-1/2 -translate-y-1/2 bg-white border-[3px] border-r-0 border-[#1B3827] rounded-l-2xl p-1.5 pl-2.5 shadow-[-4px_4px_15px_rgba(44,94,67,0.15)] cursor-pointer z-40 hover:-translate-x-1 transition-transform group flex flex-col items-center gap-1">
-            <i data-lucide="bot" class="w-5 h-5 text-[#2C5E43] group-hover:animate-bounce"></i>
-            <span class="text-[10px] font-bold text-[#2C5E43]" style="writing-mode: vertical-rl;">AI助手</span>
+        <!-- 升级点：屏幕右侧边缘悬浮菜单组 (学科切换 + AI助手) -->
+        <div class="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+            <!-- 学科切换器 -->
+            <div class="bg-white border-[3px] border-r-0 border-[#1B3827] rounded-l-2xl p-1 shadow-[-4px_4px_15px_rgba(44,94,67,0.15)] flex flex-col gap-1 transition-transform hover:-translate-x-1 cursor-pointer">
+                <button onclick="setSubject('zh')" id="btn-sub-zh" class="w-8 h-8 rounded-[10px] theme-dark-green text-white font-bold text-sm flex items-center justify-center transition-all cursor-pointer">语</button>
+                <button onclick="setSubject('en')" id="btn-sub-en" class="w-8 h-8 rounded-[10px] bg-transparent text-muted-green hover:bg-[#EEF5F0] font-bold text-sm flex items-center justify-center transition-all cursor-pointer">英</button>
+            </div>
+
+            <!-- AI 助手 -->
+            <div onclick="openAiModal()" class="bg-white border-[3px] border-r-0 border-[#1B3827] rounded-l-2xl p-1.5 pl-2.5 shadow-[-4px_4px_15px_rgba(44,94,67,0.15)] cursor-pointer hover:-translate-x-1 transition-transform group flex flex-col items-center gap-1">
+                <i data-lucide="bot" class="w-5 h-5 text-[#2C5E43] group-hover:animate-bounce"></i>
+                <span class="text-[10px] font-bold text-[#2C5E43]" style="writing-mode: vertical-rl;">AI助手</span>
+            </div>
         </div>
 
         <div class="flex-1 overflow-y-auto no-scrollbar pb-28 px-6 pt-2 relative">
-            
+
             <!-- ====== 视图 1：主页 ====== -->
             <div id="view-dictate" class="view-section fade-in">
                 <div class="flex justify-between items-start mb-4">
@@ -117,7 +126,7 @@
                             <path d="M 180 90 L 185 95 L 180 100 L 175 95 Z" fill="#FCE588"/>
                         </svg>
                     </div>
-                    
+
                     <div class="-mt-6 relative z-10 flex items-end justify-center text-[#1B3827]">
                         <span class="inline-block transform -rotate-[8deg] translate-y-1 text-[26px]" style="font-family: 'ZCOOL KuaiLe', cursive;">默</span>
                         <span class="inline-block transform rotate-[5deg] -translate-y-1 text-[24px]" style="font-family: 'ZCOOL KuaiLe', cursive;">写</span>
@@ -139,7 +148,7 @@
                             <p class="text-[9px] text-muted-green mt-0.5">AI帮你读</p>
                         </div>
                     </div>
-                    
+
                     <!-- 升级点1：绑定打开粘贴弹窗 -->
                     <div onclick="openPasteModal()" class="theme-card-white rounded-3xl p-4 flex flex-col items-center justify-center gap-2 card-hover soft-shadow relative overflow-hidden group cursor-pointer border-2 border-transparent hover:border-[#D4E5D9]">
                          <div class="absolute inset-0 bg-[#2C5E43] opacity-0 group-hover:opacity-5 transition-opacity"></div>
@@ -156,7 +165,7 @@
                             <p class="text-[9px] text-muted-green mt-0.5">点我体验</p>
                         </div>
                     </div>
-                    
+
                     <div onclick="showToast('正在打开词句库...')" class="theme-card-white rounded-3xl p-4 flex flex-col items-center justify-center gap-2 card-hover soft-shadow relative overflow-hidden group cursor-pointer">
                          <div class="absolute inset-0 bg-[#2C5E43] opacity-0 group-hover:opacity-5 transition-opacity"></div>
                         <div class="w-10 h-10 theme-accent-yellow rounded-full flex items-center justify-center mb-1">
@@ -223,7 +232,7 @@
                     <button onclick="prevWord()" class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white card-hover">
                         <i data-lucide="skip-back" class="w-5 h-5"></i>
                     </button>
-                    
+
                     <button onclick="playCurrentWord()" class="w-20 h-20 rounded-full theme-accent-yellow flex items-center justify-center text-dark-green soft-shadow card-hover shadow-[0_0_20px_rgba(253,247,227,0.3)]">
                         <i data-lucide="volume-2" class="w-10 h-10 ml-1"></i>
                     </button>
@@ -346,9 +355,9 @@
                     </button>
                 </div>
                 <p class="text-xs text-muted-green mb-4 font-medium">请将需要听写的生字词粘贴到下方，使用空格或换行隔开即可。</p>
-                
+
                 <textarea id="dictate-input" class="w-full h-40 bg-[#EEF5F0] rounded-2xl p-4 text-dark-green font-bold focus:outline-none focus:ring-2 focus:ring-[#8BA896] resize-none mb-6" placeholder="例如：\n蜿蜒\n环境\nGo go"></textarea>
-                
+
                 <button onclick="startDictation()" class="w-full py-4 rounded-2xl theme-dark-green text-white font-bold text-lg shadow-lg shadow-green-900/20 card-hover flex items-center justify-center gap-2">
                     <i data-lucide="play-circle" class="w-5 h-5"></i>
                     开始智能听写
@@ -370,9 +379,9 @@
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                
+
                 <p class="text-xs text-muted-green mb-4 font-medium px-1">我可以帮您自动分析薄弱点并生成针对性的复习任务。</p>
-                
+
                 <div class="space-y-3 mb-6">
                     <!-- 核心升级功能：AI 自动出题 -->
                     <button onclick="generateAIWords()" class="w-full bg-[#EEF5F0] border-2 border-[#D4E5D9] rounded-2xl p-4 flex items-center justify-between card-hover transition-colors hover:bg-[#D4E5D9]">
@@ -430,7 +439,7 @@
             });
             const targetView = document.getElementById('view-' + tabId);
             targetView.classList.remove('hidden');
-            void targetView.offsetWidth; 
+            void targetView.offsetWidth;
             targetView.classList.add('fade-in');
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -456,6 +465,30 @@
         let autoPlayInterval = 5000;
         let autoPlayTimer = null;
 
+        let currentSubject = 'zh'; // 默认语文学科
+
+        // 切换学科功能
+        function setSubject(sub) {
+            currentSubject = sub;
+            const btnZh = document.getElementById('btn-sub-zh');
+            const btnEn = document.getElementById('btn-sub-en');
+            const placeholderEl = document.getElementById('dictate-input');
+
+            if (sub === 'zh') {
+                btnZh.className = 'w-8 h-8 rounded-[10px] theme-dark-green text-white font-bold text-sm flex items-center justify-center transition-all cursor-pointer';
+                btnEn.className = 'w-8 h-8 rounded-[10px] bg-transparent text-muted-green hover:bg-[#EEF5F0] font-bold text-sm flex items-center justify-center transition-all cursor-pointer';
+                if(placeholderEl) placeholderEl.placeholder = "例如：\n蜿蜒\n环境\n春意盎然";
+            } else {
+                btnEn.className = 'w-8 h-8 rounded-[10px] theme-dark-green text-white font-bold text-sm flex items-center justify-center transition-all cursor-pointer';
+                btnZh.className = 'w-8 h-8 rounded-[10px] bg-transparent text-muted-green hover:bg-[#EEF5F0] font-bold text-sm flex items-center justify-center transition-all cursor-pointer';
+                if(placeholderEl) placeholderEl.placeholder = "例如：\nApple\nBanana\nEnvironment";
+            }
+
+            // 如果文本框内是之前自动生成的默认值，则清空以便切换
+            document.getElementById('dictate-input').value = "";
+            showToast(`已切换为 ${sub === 'zh' ? '语文' : '英语'} 模式`);
+        }
+
         // 打开/关闭粘贴弹窗
         function openPasteModal() {
             const modal = document.getElementById('paste-modal');
@@ -465,10 +498,14 @@
                 modal.classList.remove('opacity-0');
                 content.classList.remove('translate-y-full');
             }, 10);
-            
-            // 预填一些测试数据方便体验
+
+            // 根据不同学科预填测试数据
             if(!document.getElementById('dictate-input').value) {
-                document.getElementById('dictate-input').value = "苹果 香蕉\nEnvironment\n蜿蜒曲折";
+                if(currentSubject === 'zh') {
+                    document.getElementById('dictate-input').value = "苹果 香蕉\n蜿蜒曲折\n春意盎然";
+                } else {
+                    document.getElementById('dictate-input').value = "Apple Banana\nEnvironment\nBeautiful";
+                }
             }
         }
 
@@ -504,9 +541,13 @@
             closeAiModal();
             // 模拟 AI 请求延迟后，直接连缀打开听写面板
             setTimeout(() => {
-                document.getElementById('dictate-input').value = "犹豫不决\nEnvironment\nBeautiful\n尴尬\n不知所措\nVocabulary";
+                if (currentSubject === 'zh') {
+                    document.getElementById('dictate-input').value = "犹豫不决\n蜿蜒曲折\n尴尬\n不知所措\n春意盎然";
+                } else {
+                    document.getElementById('dictate-input').value = "Environment\nBeautiful\nVocabulary\nAwkward\nHesitate";
+                }
                 openPasteModal();
-                showToast("生成成功！已自动填入准备框");
+                showToast(`生成成功！已填入${currentSubject === 'zh' ? '语文' : '英语'}易错词`);
             }, 1200);
         }
 
@@ -515,7 +556,7 @@
             const text = document.getElementById('dictate-input').value;
             // 按空格或换行切分词语，过滤空字符串
             wordsList = text.split(/[\s,，]+/).filter(w => w.trim() !== '');
-            
+
             if(wordsList.length === 0) {
                 showToast("请至少输入一个词语哦！");
                 return;
@@ -523,17 +564,17 @@
 
             closePasteModal();
             currentIndex = 0;
-            
+
             // 隐藏底部导航栏，展示播放器视图
             document.getElementById('bottom-nav').classList.add('translate-y-[150%]');
-            
+
             // 切换到 player 视图
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
             document.getElementById('view-player').classList.remove('hidden');
             document.getElementById('view-player').classList.add('fade-in');
 
             updatePlayerUI();
-            
+
             // 自动播报第一个词
             setTimeout(playCurrentWord, 500);
         }
@@ -541,9 +582,9 @@
         // 退出播放器
         function exitPlayer() {
             synth.cancel(); // 停止语音
-            isAutoPlaying = false; 
-            clearTimeout(autoPlayTimer); 
-            
+            isAutoPlaying = false;
+            clearTimeout(autoPlayTimer);
+
             // 重置自动播放按钮状态
             const btn = document.getElementById('btn-autoplay');
             if(btn) {
@@ -561,10 +602,10 @@
         function updatePlayerUI() {
             document.getElementById('player-total-count').textContent = wordsList.length;
             document.getElementById('player-current-index').textContent = currentIndex + 1;
-            
+
             const wordEl = document.getElementById('player-word');
             wordEl.textContent = wordsList[currentIndex];
-            
+
             // 切换词语时默认打码
             wordEl.classList.add('blur-text');
             wordEl.classList.remove('revealed');
@@ -577,7 +618,7 @@
         function toggleReveal() {
             const wordEl = document.getElementById('player-word');
             const eyeIcon = document.getElementById('eye-icon');
-            
+
             if(wordEl.classList.contains('revealed')) {
                 wordEl.classList.remove('revealed');
                 eyeIcon.setAttribute('data-lucide', 'eye-off');
@@ -595,16 +636,21 @@
             clearTimeout(autoPlayTimer); // 清除可能存在的自动播放定时器
 
             const word = wordsList[currentIndex];
-            
+
             // 创建发音对象
             const utterance = new SpeechSynthesisUtterance(word);
             utterance.rate = 0.85; // 稍微放慢语速适合听写
             utterance.pitch = 1;
-            
-            // 尝试选择中文语音包
+
+            // 根据当前选择的学科切换中英文语音包
             const voices = synth.getVoices();
-            const zhVoice = voices.find(v => v.lang.includes('zh'));
-            if(zhVoice) utterance.voice = zhVoice;
+            let targetVoice = null;
+            if(currentSubject === 'zh') {
+                targetVoice = voices.find(v => v.lang.includes('zh'));
+            } else {
+                targetVoice = voices.find(v => v.lang.includes('en-US') || v.lang.includes('en-GB') || v.lang.includes('en'));
+            }
+            if(targetVoice) utterance.voice = targetVoice;
 
             // 播放界面动效
             const btn = document.querySelector('[onclick="playCurrentWord()"]');
@@ -671,7 +717,7 @@
                 icon.setAttribute('data-lucide', 'square');
                 lucide.createIcons();
                 showToast(`已开启自动播放（间隔${autoPlayInterval/1000}秒）`);
-                
+
                 // 如果当前没有在播放，立刻开始播放
                 if(!synth.speaking) {
                     playCurrentWord();
