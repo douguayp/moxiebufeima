@@ -325,23 +325,23 @@
 
         </div>
 
-        <!-- 悬浮导航栏 -->
-        <div id="bottom-nav" class="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl rounded-[2rem] p-2 flex justify-between items-center soft-shadow z-40 transition-transform duration-300">
-            <button onclick="switchTab('dictate', this)" class="nav-btn flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl theme-light-green text-dark-green transition-all" data-target="dictate">
+        <!-- 全新升级：不再隐藏文字的清晰底部导航栏 -->
+        <div id="bottom-nav" class="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-xl rounded-[2rem] p-2 flex justify-between items-center soft-shadow z-40 transition-transform duration-300">
+            <button onclick="switchTab('dictate', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-[#EEF5F0] text-dark-green transition-all" data-target="dictate">
                 <i data-lucide="home" class="w-5 h-5 nav-icon"></i>
-                <span class="text-[11px] font-bold nav-text">主页</span>
+                <span class="text-[13px] font-semibold nav-text">主页</span>
             </button>
-            <button onclick="switchTab('grade', this)" class="nav-btn flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl bg-transparent text-muted-green transition-all" data-target="grade">
+            <button onclick="switchTab('grade', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="grade">
                 <i data-lucide="check-square" class="w-5 h-5 nav-icon"></i>
-                <span class="text-[11px] font-bold nav-text hidden">批改</span>
+                <span class="text-[13px] font-medium nav-text">批改</span>
             </button>
-            <button onclick="switchTab('mistakes', this)" class="nav-btn flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl bg-transparent text-muted-green transition-all" data-target="mistakes">
+            <button onclick="switchTab('mistakes', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="mistakes">
                 <i data-lucide="book-x" class="w-5 h-5 nav-icon"></i>
-                <span class="text-[11px] font-bold nav-text hidden">错题</span>
+                <span class="text-[13px] font-medium nav-text">错题</span>
             </button>
-            <button onclick="switchTab('review', this)" class="nav-btn flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl bg-transparent text-muted-green transition-all" data-target="review">
+            <button onclick="switchTab('review', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="review">
                 <i data-lucide="calendar" class="w-5 h-5 nav-icon"></i>
-                <span class="text-[11px] font-bold nav-text hidden">复习</span>
+                <span class="text-[13px] font-medium nav-text">复习</span>
             </button>
         </div>
 
@@ -443,15 +443,17 @@
             targetView.classList.add('fade-in');
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('theme-light-green', 'text-dark-green');
-                btn.classList.add('bg-transparent', 'text-muted-green');
-                btn.querySelector('.nav-text').classList.add('hidden');
+                btn.classList.remove('bg-[#EEF5F0]', 'text-dark-green');
+                btn.classList.add('bg-transparent', 'text-[#50725E]');
+                btn.querySelector('.nav-text').classList.remove('font-semibold');
+                btn.querySelector('.nav-text').classList.add('font-medium');
             });
 
             if(btnElement) {
-                btnElement.classList.remove('bg-transparent', 'text-muted-green');
-                btnElement.classList.add('theme-light-green', 'text-dark-green');
-                btnElement.querySelector('.nav-text').classList.remove('hidden');
+                btnElement.classList.remove('bg-transparent', 'text-[#50725E]');
+                btnElement.classList.add('bg-[#EEF5F0]', 'text-dark-green');
+                btnElement.querySelector('.nav-text').classList.remove('font-medium');
+                btnElement.querySelector('.nav-text').classList.add('font-semibold');
             }
         }
 
