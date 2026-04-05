@@ -1,0 +1,372 @@
+<view class="desktop-shell">
+  <view class="screen">
+    <view class="status-bar" style="padding-top: {{statusBarHeight}}px;">
+      <text class="status-time">08:30</text>
+      <view class="status-icons">
+        <image class="status-icon" src="{{icons.barChartDark}}" mode="aspectFit" />
+        <image class="status-icon" src="{{icons.wifiDark}}" mode="aspectFit" />
+        <image class="status-icon status-icon--battery" src="{{icons.batteryDark}}" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="floating-rail">
+      <view class="assistant-rail" bindtap="openAiModal">
+        <image class="assistant-rail__icon" src="{{icons.botGreen}}" mode="aspectFit" />
+        <text class="assistant-rail__text">AI助手</text>
+      </view>
+    </view>
+
+    <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <block wx:if="{{activeView === 'dictate'}}">
+        <view class="home-view fade-in-view">
+          <view class="page-header">
+            <view>
+              <text class="page-title">Relax, Mom</text>
+              <text class="page-subtitle">Take a breath</text>
+            </view>
+            <view class="leaf-badge">
+              <image class="leaf-badge__icon" src="{{icons.leafDark}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="hero-section">
+            <view class="hero-glow"></view>
+            <image class="hero-mark hero-mark--left" src="{{icons.sparklesPink}}" mode="aspectFit" />
+            <image class="hero-mark hero-mark--right" src="{{icons.starGreen}}" mode="aspectFit" />
+            <image class="hero-illustration" src="/assets/illustrations/home-hero.svg" mode="aspectFit" />
+            <view class="hero-copy">
+              <text class="hero-copy__cn hero-copy__cn--first">默</text>
+              <text class="hero-copy__cn hero-copy__cn--second">写</text>
+              <text class="hero-copy__en hero-copy__en--first">G</text>
+              <text class="hero-copy__en hero-copy__en--second">O</text>
+              <text class="hero-copy__en hero-copy__en--third">G</text>
+              <text class="hero-copy__en hero-copy__en--fourth">O</text>
+            </view>
+          </view>
+
+          <view class="tool-grid">
+            <view class="tool-card" bindtap="handleToolTap" data-action="camera">
+              <view class="tool-icon tool-icon--yellow">
+                <image class="tool-icon__img" src="{{icons.cameraDark}}" mode="aspectFit" />
+              </view>
+              <text class="tool-card__title">拍教材</text>
+              <text class="tool-card__subtitle">AI帮你读</text>
+            </view>
+
+            <view class="tool-card tool-card--highlight" bindtap="handleToolTap" data-action="paste">
+              <view class="tool-icon tool-icon--green">
+                <image class="tool-icon__img" src="{{icons.clipboardDark}}" mode="aspectFit" />
+                <view class="tool-dot"></view>
+              </view>
+              <text class="tool-card__title">粘文本</text>
+              <text class="tool-card__subtitle">点我体验</text>
+            </view>
+
+            <view class="tool-card" bindtap="handleToolTap" data-action="library">
+              <view class="tool-icon tool-icon--yellow">
+                <image class="tool-icon__img" src="{{icons.libraryDark}}" mode="aspectFit" />
+              </view>
+              <text class="tool-card__title">词句库</text>
+              <text class="tool-card__subtitle">一键复用</text>
+            </view>
+          </view>
+
+          <view class="review-banner" bindtap="goToReview">
+            <view>
+              <text class="review-banner__title">今日轻松复习</text>
+              <text class="review-banner__subtitle">Review &amp; Go play</text>
+            </view>
+            <view class="review-banner__action">
+              <image class="review-banner__action-icon" src="{{icons.arrowRightWhite}}" mode="aspectFit" />
+            </view>
+            <image class="review-banner__decor" src="{{icons.apertureWhite}}" mode="aspectFit" />
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'player'}}">
+        <view class="player-view fade-in-view">
+          <view class="player-topbar">
+            <view class="circle-button" bindtap="exitPlayer">
+              <image class="circle-button__icon" src="{{icons.chevronLeftDark}}" mode="aspectFit" />
+            </view>
+            <view class="player-topbar__center">
+              <text class="player-topbar__title">听写进行中</text>
+              <text class="player-topbar__meta">{{playerTaskMeta}}</text>
+            </view>
+            <view class="circle-button circle-button--ghost" bindtap="handleSaveProgress">
+              <image class="circle-button__icon" src="{{icons.saveDark}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="player-progress">
+            <text class="player-progress__label">Progress</text>
+            <view class="player-progress__numbers">
+              <text class="player-progress__current">{{currentPlayerDisplay}}</text>
+              <text class="player-progress__slash">/</text>
+              <text class="player-progress__total">{{playerTotalCount}}</text>
+            </view>
+          </view>
+
+          <view class="player-card">
+            <view class="player-eye" bindtap="toggleReveal">
+              <image class="player-eye__icon" src="{{revealed ? icons.eyeDark : icons.eyeOffDark}}" mode="aspectFit" />
+            </view>
+            <text class="player-card__label">{{playerCardLabel}}</text>
+            <text class="player-word {{revealed ? '' : 'player-word--blur'}}">{{playerWord}}</text>
+            <text class="player-card__hint {{revealed ? 'player-card__hint--hidden' : ''}}">点击右上方小眼睛偷看</text>
+          </view>
+
+          <view class="player-controls">
+            <view class="player-controls__button" bindtap="prevWord">
+              <image class="player-controls__icon" src="{{icons.skipBackWhite}}" mode="aspectFit" />
+            </view>
+            <view class="player-controls__button player-controls__button--primary" bindtap="playCurrentWord">
+              <image class="player-controls__primary-icon" src="{{icons.volumeDark}}" mode="aspectFit" />
+            </view>
+            <view class="player-controls__button" bindtap="nextWord">
+              <image class="player-controls__icon" src="{{icons.skipForwardWhite}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="player-settings">
+            <picker mode="selector" range="{{intervalOptions}}" value="{{selectedIntervalIndex}}" bindchange="handleIntervalChange">
+              <view class="interval-pill">
+                <image class="interval-pill__icon" src="{{icons.timerDark}}" mode="aspectFit" />
+                <text class="interval-pill__label">间隔</text>
+                <text class="interval-pill__value">{{intervalOptions[selectedIntervalIndex]}}</text>
+              </view>
+            </picker>
+
+            <view class="autoplay-button {{autoPlayEnabled ? 'autoplay-button--active' : ''}}" bindtap="toggleAutoPlay">
+              <image class="autoplay-button__icon" src="{{icons.playSquareDark}}" mode="aspectFit" />
+              <text class="autoplay-button__text">{{autoPlayEnabled ? '停止自动' : '自动播放'}}</text>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'grade'}}">
+        <view class="sub-view fade-in-view">
+          <view class="page-header page-header--tight">
+            <view>
+              <text class="page-title">AI Check</text>
+              <text class="page-subtitle">Let AI do the work</text>
+            </view>
+            <view class="leaf-badge leaf-badge--green">
+              <image class="leaf-badge__icon" src="{{icons.sparklesDark}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="empty-card">
+            <view class="empty-card__circle">
+              <image class="empty-card__icon" src="{{icons.scanLineWhite}}" mode="aspectFit" />
+            </view>
+            <text class="empty-card__title">拍默写本批改</text>
+            <text class="empty-card__desc">系统自动比对标准答案{{'\n'}}你只需喝口茶</text>
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'mistakes'}}">
+        <view class="sub-view fade-in-view">
+          <view class="page-header page-header--mistakes">
+            <view>
+              <text class="page-title">Mistakes</text>
+              <text class="page-subtitle">Growth points</text>
+            </view>
+            <image class="page-header__side-icon" src="{{icons.targetDark}}" mode="aspectFit" />
+          </view>
+
+          <view class="mistake-card">
+            <text class="mistake-card__label">Standard</text>
+            <text class="mistake-card__word">蜿蜒</text>
+            <view class="mistake-card__answer">
+              <text class="mistake-card__wrong">碗延</text>
+              <text class="mistake-card__tip">注意是“虫”字旁哦</text>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'review'}}">
+        <view class="sub-view fade-in-view">
+          <view class="page-header page-header--tight">
+            <view>
+              <text class="page-title">Review</text>
+              <text class="page-subtitle">Smart memory</text>
+            </view>
+            <image class="page-header__side-icon" src="{{icons.calendarHeartDark}}" mode="aspectFit" />
+          </view>
+
+          <view class="review-target-card">
+            <view>
+              <text class="review-target-card__label">Today's Target</text>
+              <view class="review-target-card__value">
+                <text class="review-target-card__count">{{reviewTarget}}</text>
+                <text class="review-target-card__unit">词</text>
+              </view>
+            </view>
+            <view class="review-target-card__button" bindtap="handleReviewPlay">
+              <image class="review-target-card__button-icon" src="{{icons.playWhite}}" mode="aspectFit" />
+            </view>
+          </view>
+        </view>
+      </block>
+    </scroll-view>
+
+    <view wx:if="{{activeView !== 'player'}}" class="bottom-nav">
+      <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="dictate">
+        <image class="nav-item__icon" src="{{activeView === 'dictate' ? icons.homeDark : icons.homeMuted}}" mode="aspectFit" />
+        <text wx:if="{{activeView === 'dictate'}}" class="nav-item__text">主页</text>
+      </view>
+      <view class="nav-item {{activeView === 'grade' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="grade">
+        <image class="nav-item__icon" src="{{activeView === 'grade' ? icons.checkSquareDark : icons.checkSquareMuted}}" mode="aspectFit" />
+        <text wx:if="{{activeView === 'grade'}}" class="nav-item__text">批改</text>
+      </view>
+      <view class="nav-item {{activeView === 'mistakes' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="mistakes">
+        <image class="nav-item__icon" src="{{activeView === 'mistakes' ? icons.bookXDark : icons.bookXMuted}}" mode="aspectFit" />
+        <text wx:if="{{activeView === 'mistakes'}}" class="nav-item__text">错题</text>
+      </view>
+      <view class="nav-item {{activeView === 'review' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="review">
+        <image class="nav-item__icon" src="{{activeView === 'review' ? icons.calendarDark : icons.calendarMuted}}" mode="aspectFit" />
+        <text wx:if="{{activeView === 'review'}}" class="nav-item__text">复习</text>
+      </view>
+    </view>
+
+    <view wx:if="{{showPasteModal}}" class="overlay" bindtap="closePasteModal">
+      <view class="sheet" catchtap="noop">
+        <view class="sheet-header">
+          <text class="sheet-title">准备听写内容</text>
+          <view class="sheet-close" bindtap="closePasteModal">
+            <image class="sheet-close__icon" src="{{icons.xMuted}}" mode="aspectFit" />
+          </view>
+        </view>
+        <text class="sheet-note">创建任务前先明确学科和模式，本阶段不做自动推断。</text>
+
+        <view class="config-block">
+          <text class="config-block__title">选择学科</text>
+          <view class="selector-row">
+            <view
+              wx:for="{{subjectOptions}}"
+              wx:key="key"
+              class="selector-chip {{item.active ? 'selector-chip--active' : ''}}"
+              bindtap="setSubject"
+              data-subject="{{item.key}}"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="config-block">
+          <text class="config-block__title">选择模式</text>
+          <view class="mode-grid">
+            <view
+              wx:for="{{modeOptions}}"
+              wx:key="key"
+              class="mode-card {{item.active ? 'mode-card--active' : ''}} {{item.disabled ? 'mode-card--disabled' : ''}}"
+              bindtap="selectMode"
+              data-mode="{{item.key}}"
+            >
+              <text class="mode-card__title">{{item.label}}</text>
+              <text class="mode-card__desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="selection-summary">
+          <text class="selection-summary__label">当前任务</text>
+          <text class="selection-summary__value">{{taskSummaryText}}</text>
+        </view>
+
+        <text class="split-rule">{{splitRuleText}}</text>
+
+        <textarea
+          class="sheet-textarea"
+          value="{{pasteInput}}"
+          placeholder="{{pastePlaceholder}}"
+          maxlength="-1"
+          bindinput="handlePasteInput"
+        />
+        <view class="primary-button" bindtap="startDictation">
+          <image class="primary-button__icon" src="{{icons.playCircleWhite}}" mode="aspectFit" />
+          <text class="primary-button__text">开始智能听写</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{showAiModal}}" class="overlay" bindtap="closeAiModal">
+      <view class="sheet" catchtap="noop">
+        <view class="sheet-header sheet-header--ai">
+          <view class="sheet-ai-title">
+            <view class="sheet-ai-title__badge">
+              <image class="sheet-ai-title__icon" src="{{icons.botDark}}" mode="aspectFit" />
+            </view>
+            <text class="sheet-title">AI 智能助手</text>
+          </view>
+          <view class="sheet-close" bindtap="closeAiModal">
+            <image class="sheet-close__icon" src="{{icons.xMuted}}" mode="aspectFit" />
+          </view>
+        </view>
+        <text class="sheet-note">我可以帮您自动分析薄弱点并生成针对性的复习任务。</text>
+
+        <view class="ai-card" bindtap="handleAiAction" data-action="generate">
+          <view class="ai-card__content">
+            <view class="ai-card__badge">
+              <image class="ai-card__badge-icon" src="{{icons.sparklesGreen}}" mode="aspectFit" />
+            </view>
+            <view class="ai-card__texts">
+              <text class="ai-card__title">一键生成易错词库</text>
+              <text class="ai-card__desc">根据历史错题自动组卷出题</text>
+            </view>
+          </view>
+          <image class="ai-card__arrow" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
+        </view>
+
+        <view class="ai-card" bindtap="handleAiAction" data-action="analysis">
+          <view class="ai-card__content">
+            <view class="ai-card__badge">
+              <image class="ai-card__badge-icon" src="{{icons.barChartHorizontalGreen}}" mode="aspectFit" />
+            </view>
+            <view class="ai-card__texts">
+              <text class="ai-card__title">薄弱知识点分析</text>
+              <text class="ai-card__desc">精准定位孩子复习重点</text>
+            </view>
+          </view>
+          <image class="ai-card__arrow" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{showAnalysisSheet}}" class="overlay" bindtap="closeAnalysisSheet">
+      <view class="sheet" catchtap="noop">
+        <view class="sheet-header">
+          <text class="sheet-title">薄弱知识点分析</text>
+          <view class="sheet-close" bindtap="closeAnalysisSheet">
+            <image class="sheet-close__icon" src="{{icons.xMuted}}" mode="aspectFit" />
+          </view>
+        </view>
+
+        <view class="analysis-summary">
+          <text class="analysis-summary__title">{{analysisTitle}}</text>
+          <text class="analysis-summary__desc">{{analysisSubtitle}}</text>
+        </view>
+
+        <view wx:for="{{analysisItems}}" wx:key="title" class="analysis-item">
+          <text class="analysis-item__title">{{item.title}}</text>
+          <text class="analysis-item__desc">{{item.desc}}</text>
+        </view>
+
+        <view class="analysis-action" bindtap="closeAnalysisSheet">
+          <text class="analysis-action__text">{{analysisActionText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{showToast}}" class="toast">
+      <image class="toast__icon" src="{{icons.bellYellow}}" mode="aspectFit" />
+      <text class="toast__text">{{toastMessage}}</text>
+    </view>
+  </view>
+</view>
