@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>不费妈 - 轻松默写</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=ZCOOL+KuaiLe&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #E8F0EA;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .theme-bg { background-color: #EEF5F0; } 
+        .theme-card-white { background-color: #FFFFFF; } 
+        .theme-accent-yellow { background-color: #FDF7E3; } 
+        .theme-dark-green { background-color: #2C5E43; } 
+        .theme-light-green { background-color: #D4E5D9; } 
+        .text-dark-green { color: #1B3827; } 
+        .text-muted-green { color: #6E8F7A; } 
+
+        .soft-shadow { box-shadow: 0 8px 24px rgba(44, 94, 67, 0.04); }
+        .card-hover:active { transform: scale(0.96); transition: transform 0.2s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        .blur-text { filter: blur(6px); user-select: none; transition: filter 0.3s ease; }
+        .blur-text.revealed { filter: blur(0px); }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen">
+
+    <div class="w-full max-w-[400px] h-[100dvh] sm:h-[850px] theme-bg sm:rounded-[3rem] sm:shadow-2xl relative overflow-hidden flex flex-col sm:border-[8px] sm:border-[#1B3827]">
+        
+        <div class="h-12 w-full flex justify-between items-center px-6 pt-2 text-dark-green font-medium text-sm z-10 shrink-0">
+            <span>08:30</span>
+            <div class="flex items-center gap-1.5 opacity-80">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/><line x1="10" y1="11" x2="10" y2="13"/><line x1="14" y1="11" x2="14" y2="13"/></svg>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto no-scrollbar pb-32 px-6 pt-1 relative">
+            
+            <!-- ====== 视图 1：主页 ====== -->
+            <div id="view-dictate" class="view-section fade-in">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h1 class="text-2xl font-bold text-dark-green tracking-wide uppercase">Relax, Mom</h1>
+                        <p class="text-[11px] text-muted-green font-medium mt-0.5 tracking-widest uppercase">Take a breath</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full theme-accent-yellow flex items-center justify-center soft-shadow">
+                        <svg class="w-4 h-4 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><line x1="2" y1="22" x2="11" y2="13"/></svg>
+                    </div>
+                </div>
+
+                <!-- 核心：高颜值 Canvas 原画区域 -->
+                <div class="w-full flex flex-col items-center justify-center relative mb-5 mt-1">
+                    <div class="absolute w-40 h-40 theme-light-green rounded-full opacity-50 blur-2xl top-2"></div>
+                    
+                    <!-- 极其细腻丝滑的 Canvas 动画容器 -->
+                    <div class="relative z-10 w-[260px] h-[180px] flex justify-center items-center pointer-events-none">
+                        <canvas id="heroCanvas" class="w-full h-full"></canvas>
+                    </div>
+                    
+                    <div class="-mt-3 relative z-10 flex items-end justify-center text-[#1B3827]">
+                        <span class="inline-block transform -rotate-[8deg] translate-y-1 text-[24px]" style="font-family: 'ZCOOL KuaiLe', cursive;">默</span>
+                        <span class="inline-block transform rotate-[5deg] -translate-y-1 text-[22px]" style="font-family: 'ZCOOL KuaiLe', cursive;">写</span>
+                        <span class="inline-block transform -rotate-[6deg] translate-y-1 ml-2.5 text-[28px]" style="font-family: 'Caveat Brush', cursive;">G</span>
+                        <span class="inline-block transform rotate-[8deg] text-[24px]" style="font-family: 'Caveat Brush', cursive;">O</span>
+                        <span class="inline-block transform -rotate-[5deg] -translate-y-1 ml-1.5 text-[26px]" style="font-family: 'Caveat Brush', cursive;">G</span>
+                        <span class="inline-block transform rotate-[12deg] translate-y-1 text-[23px]" style="font-family: 'Caveat Brush', cursive;">O</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mt-8 mb-4">
+                    <div onclick="showToast('正在调起摄像头识别...')" class="theme-card-white rounded-3xl p-4 flex flex-col items-center justify-center gap-2 card-hover soft-shadow relative overflow-hidden group cursor-pointer">
+                        <div class="absolute inset-0 bg-[#2C5E43] opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                        <div class="w-10 h-10 theme-accent-yellow rounded-full flex items-center justify-center mb-1">
+                            <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                        </div>
+                        <div class="text-center">
+                            <h3 class="font-bold text-dark-green text-[13px]">拍教材</h3>
+                            <p class="text-[9px] text-muted-green mt-0.5">AI帮你读</p>
+                        </div>
+                    </div>
+                    
+                    <div onclick="openPasteModal()" class="theme-card-white rounded-3xl p-4 flex flex-col items-center justify-center gap-2 card-hover soft-shadow relative overflow-hidden group cursor-pointer border-2 border-transparent hover:border-[#D4E5D9]">
+                         <div class="absolute inset-0 bg-[#2C5E43] opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                        <div class="w-10 h-10 theme-light-green rounded-full flex items-center justify-center mb-1 relative">
+                            <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                            <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
+                            </span>
+                        </div>
+                        <div class="text-center">
+                            <h3 class="font-bold text-dark-green text-[13px]">粘文本</h3>
+                            <p class="text-[9px] text-muted-green mt-0.5">点我体验</p>
+                        </div>
+                    </div>
+                    
+                    <div onclick="showToast('正在打开词句库...')" class="theme-card-white rounded-3xl p-4 flex flex-col items-center justify-center gap-2 card-hover soft-shadow relative overflow-hidden group cursor-pointer">
+                         <div class="absolute inset-0 bg-[#2C5E43] opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                        <div class="w-10 h-10 theme-accent-yellow rounded-full flex items-center justify-center mb-1">
+                            <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+                        </div>
+                        <div class="text-center">
+                            <h3 class="font-bold text-dark-green text-[13px]">词句库</h3>
+                            <p class="text-[9px] text-muted-green mt-0.5">一键复用</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 新增：方案二 AI 助手横向长卡片 -->
+                <div onclick="openAiModal()" class="w-full theme-card-white border-2 border-transparent hover:border-[#D4E5D9] rounded-[1.8rem] p-4 flex items-center justify-between card-hover soft-shadow cursor-pointer group transition-all">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 theme-accent-yellow rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-bold text-dark-green text-[15px] flex items-center gap-1.5">
+                                AI 智能助手
+                                <svg class="w-3.5 h-3.5 text-[#FCA5A5] fill-[#FCA5A5] animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            </h3>
+                            <p class="text-[11px] text-muted-green mt-0.5 tracking-wide">一键生成易错词库，精准复习</p>
+                        </div>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-[#EEF5F0] flex items-center justify-center text-dark-green group-hover:bg-[#D4E5D9] transition-colors">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </div>
+
+                <div onclick="switchTab('review', document.querySelector('.nav-btn[data-target=\'review\']'))" class="mt-6 theme-dark-green rounded-[1.8rem] p-6 relative overflow-hidden card-hover soft-shadow cursor-pointer">
+                    <div class="relative z-10 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-white font-bold text-lg tracking-wide">今日轻松复习</h3>
+                            <p class="text-[#A1C2B0] text-xs mt-1 font-medium">Review & Go play</p>
+                        </div>
+                        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </div>
+                    </div>
+                    <svg class="absolute -right-6 -bottom-6 w-32 h-32 text-white opacity-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="14.31" y1="8" x2="20.05" y2="17.94"/><line x1="9.69" y1="8" x2="21.17" y2="8"/><line x1="7.38" y1="12" x2="13.12" y2="2.06"/><line x1="9.69" y1="16" x2="3.95" y2="6.06"/><line x1="14.31" y1="16" x2="2.83" y2="16"/><line x1="16.62" y1="12" x2="10.88" y2="21.94"/></svg>
+                </div>
+            </div>
+
+            <!-- ====== 视图：听写播放器 ====== -->
+            <div id="view-player" class="view-section hidden fade-in h-full flex flex-col pt-4">
+                <div class="flex items-center justify-between mb-8">
+                    <button onclick="exitPlayer()" class="w-10 h-10 bg-white rounded-full flex items-center justify-center soft-shadow text-dark-green card-hover">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <h2 class="font-bold text-lg text-dark-green tracking-wide">听写进行中</h2>
+                    <button onclick="showToast('已保存当前进度')" class="w-10 h-10 bg-white/50 rounded-full flex items-center justify-center text-dark-green">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex flex-col items-center mb-8">
+                    <div class="text-sm font-bold text-muted-green mb-2 uppercase tracking-widest">Progress</div>
+                    <div class="flex items-end gap-1">
+                        <span id="player-current-index" class="text-4xl font-extrabold text-dark-green">1</span>
+                        <span class="text-xl font-bold text-muted-green mb-1">/</span>
+                        <span id="player-total-count" class="text-xl font-bold text-muted-green mb-1">10</span>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center mb-10">
+                    <div class="w-full theme-card-white rounded-[2.5rem] p-10 flex flex-col items-center justify-center soft-shadow relative min-h-[220px]">
+                        <div class="absolute top-4 right-4 cursor-pointer p-2 bg-gray-50 rounded-full text-gray-400 hover:text-dark-green transition-colors" onclick="toggleReveal()">
+                            <svg id="eye-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                        </div>
+                        <p class="text-xs text-muted-green font-bold mb-4">当前听写词语</p>
+                        <h1 id="player-word" class="text-4xl font-bold text-dark-green tracking-widest blur-text text-center break-all">加载中</h1>
+                        <p id="player-hint" class="text-xs text-red-400 font-bold mt-6 opacity-0 transition-opacity">点击右上方小眼睛偷看</p>
+                    </div>
+                </div>
+
+                <div class="theme-dark-green rounded-[2.5rem] p-8 flex items-center justify-center gap-6 soft-shadow mb-4">
+                    <button onclick="prevWord()" class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white card-hover">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+                    </button>
+                    
+                    <button onclick="playCurrentWord()" class="w-20 h-20 rounded-full theme-accent-yellow flex items-center justify-center text-dark-green soft-shadow card-hover shadow-[0_0_20px_rgba(253,247,227,0.3)]">
+                        <svg class="w-10 h-10 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    </button>
+
+                    <button onclick="nextWord()" class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white card-hover">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-center gap-4 mt-2">
+                    <div class="flex items-center gap-2 bg-white/60 px-4 py-2.5 rounded-2xl soft-shadow text-sm font-bold text-dark-green">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></svg>
+                        <span>间隔</span>
+                        <select id="interval-select" class="bg-transparent outline-none text-dark-green font-bold cursor-pointer" onchange="changeInterval(this.value)">
+                            <option value="3">3秒</option>
+                            <option value="5" selected>5秒</option>
+                            <option value="8">8秒</option>
+                            <option value="10">10秒</option>
+                        </select>
+                    </div>
+                    <button id="btn-autoplay" onclick="toggleAutoPlay()" class="px-5 py-2.5 rounded-2xl theme-light-green text-dark-green font-bold soft-shadow flex items-center gap-2 transition-colors card-hover">
+                        <svg id="autoplay-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                        <span id="autoplay-text">自动播放</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 其他视图 -->
+            <div id="view-grade" class="view-section hidden fade-in">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-dark-green tracking-wide uppercase">AI Check</h1>
+                        <p class="text-xs text-muted-green font-medium mt-1 tracking-widest uppercase">Let AI do the work</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full theme-light-green flex items-center justify-center">
+                        <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                    </div>
+                </div>
+                <div class="theme-card-white rounded-[2.5rem] p-8 mb-8 flex flex-col items-center justify-center min-h-[300px] soft-shadow card-hover border-2 border-dashed border-[#B8D4C4] relative group">
+                    <div class="absolute inset-0 bg-[#F4F9F6] rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div class="w-20 h-20 theme-dark-green rounded-full flex items-center justify-center text-white mb-5 shadow-xl shadow-green-900/20">
+                            <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-dark-green">拍默写本批改</h2>
+                        <p class="text-sm text-muted-green font-medium mt-2 text-center leading-relaxed">系统自动比对标准答案<br>你只需喝口茶</p>
+                    </div>
+                </div>
+                <h3 class="text-sm font-bold text-dark-green mb-3 px-2">最近批改记录</h3>
+                <div class="theme-card-white rounded-3xl p-4 soft-shadow flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-full theme-light-green flex items-center justify-center">
+                            <span class="font-bold text-xl text-dark-green">100</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-dark-green text-sm">英语 三年级上册</p>
+                            <p class="text-xs text-muted-green mt-1">刚刚 · 全对！</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-[#A1C2B0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+            </div>
+
+            <div id="view-mistakes" class="view-section hidden fade-in">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h1 class="text-3xl font-bold text-dark-green tracking-wide uppercase">Mistakes</h1>
+                        <p class="text-xs text-muted-green font-medium mt-1 tracking-widest uppercase">Growth points</p>
+                    </div>
+                    <svg class="w-8 h-8 text-dark-green mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div class="flex gap-3 mb-6 overflow-x-auto no-scrollbar py-1">
+                    <button class="theme-dark-green text-white px-6 py-2.5 rounded-full text-xs font-bold shadow-lg shadow-green-900/20 whitespace-nowrap">全部 (6)</button>
+                    <button class="theme-card-white text-muted-green px-6 py-2.5 rounded-full text-xs font-bold soft-shadow whitespace-nowrap">语文 (4)</button>
+                    <button class="theme-card-white text-muted-green px-6 py-2.5 rounded-full text-xs font-bold soft-shadow whitespace-nowrap">英语 (2)</button>
+                </div>
+                <div class="space-y-4">
+                    <div class="theme-card-white rounded-[1.8rem] p-6 soft-shadow relative">
+                        <div class="absolute top-0 right-4 theme-accent-yellow text-[#B8860B] text-[10px] font-bold px-3 py-1.5 rounded-b-xl">复错 1 次</div>
+                        <p class="text-[10px] text-muted-green font-bold uppercase mb-1">Standard</p>
+                        <h3 class="text-2xl font-bold text-dark-green mb-4">蜿蜒 <span class="text-sm font-normal text-muted-green ml-1">(wān yán)</span></h3>
+                        <div class="theme-bg rounded-2xl p-3 flex items-center gap-3">
+                            <span class="text-red-400 font-bold line-through decoration-2">碗延</span>
+                            <span class="text-xs text-dark-green opacity-80">注意是“虫”字旁哦</span>
+                        </div>
+                    </div>
+                    <div class="theme-card-white rounded-[1.8rem] p-6 soft-shadow">
+                        <p class="text-[10px] text-muted-green font-bold uppercase mb-1">Standard</p>
+                        <h3 class="text-2xl font-bold text-dark-green mb-4 tracking-wide">environment</h3>
+                        <div class="theme-bg rounded-2xl p-3 flex items-center gap-3">
+                            <span class="text-red-400 font-bold line-through decoration-2">enviroment</span>
+                            <span class="text-xs text-dark-green opacity-80">漏掉了中间的字母 n</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-review" class="view-section hidden fade-in">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-dark-green tracking-wide uppercase">Review</h1>
+                        <p class="text-xs text-muted-green font-medium mt-1 tracking-widest uppercase">Smart memory</p>
+                    </div>
+                    <svg class="w-8 h-8 text-dark-green mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21.29 14.7a2.43 2.43 0 0 0-2.65-.52c-.3.12-.57.3-.8.53l-.34.34-.35-.34a2.43 2.43 0 0 0-2.65-.53c-.3.12-.56.3-.79.53-.95.94-1 2.53.2 3.74L17.5 22l3.6-3.55c1.2-1.21 1.14-2.8.19-3.74Z"/></svg>
+                </div>
+                <div class="theme-accent-yellow rounded-[2rem] p-6 soft-shadow mb-8 flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-[#A68A42] uppercase tracking-wider mb-2">Today's Target</p>
+                        <p class="text-4xl font-extrabold text-dark-green">8 <span class="text-sm font-bold text-[#A68A42]">词</span></p>
+                    </div>
+                    <button class="theme-dark-green text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-green-900/30 card-hover">
+                        <svg class="w-6 h-6 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </button>
+                </div>
+                <div class="relative pl-4 border-l-[3px] border-[#D4E5D9] ml-3 space-y-8">
+                    <div class="relative">
+                        <div class="absolute -left-[22px] top-1 w-4 h-4 bg-[#2C5E43] rounded-full ring-4 ring-[#EEF5F0]"></div>
+                        <p class="text-xs font-bold text-[#2C5E43] uppercase tracking-wider mb-3 ml-2">Today</p>
+                        <div class="theme-card-white rounded-[1.5rem] p-5 soft-shadow ml-2 flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-[15px] text-dark-green">语文一单元</h4>
+                                <p class="text-[11px] text-muted-green mt-1">艾宾浩斯 第 2 天</p>
+                            </div>
+                            <span class="text-[10px] font-bold text-white bg-[#2C5E43] px-3 py-1.5 rounded-full">待复习</span>
+                        </div>
+                    </div>
+                    <div class="relative opacity-60">
+                        <div class="absolute -left-[22px] top-1 w-4 h-4 bg-white border-4 border-[#D4E5D9] rounded-full"></div>
+                        <p class="text-xs font-bold text-muted-green uppercase tracking-wider mb-3 ml-2">Tomorrow</p>
+                        <div class="theme-card-white rounded-[1.5rem] p-5 soft-shadow ml-2">
+                            <h4 class="font-bold text-[15px] text-dark-green">英语 Module 1</h4>
+                            <p class="text-[11px] text-muted-green mt-1">艾宾浩斯 第 3 天</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 全新升级：不再隐藏文字的清晰底部导航栏 -->
+        <div id="bottom-nav" class="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-xl rounded-[2rem] p-2 flex justify-between items-center soft-shadow z-40 transition-transform duration-300">
+            <button onclick="switchTab('dictate', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-[#EEF5F0] text-dark-green transition-all" data-target="dictate">
+                <svg class="w-5 h-5 nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="text-[13px] font-semibold nav-text">主页</span>
+            </button>
+            <button onclick="switchTab('grade', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="grade">
+                <svg class="w-5 h-5 nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span class="text-[13px] font-medium nav-text">批改</span>
+            </button>
+            <button onclick="switchTab('mistakes', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="mistakes">
+                <svg class="w-5 h-5 nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m14.5 7-5 5"/><path d="m9.5 7 5 5"/></svg>
+                <span class="text-[13px] font-medium nav-text">错题</span>
+            </button>
+            <button onclick="switchTab('review', this)" class="nav-btn flex flex-col items-center gap-0.5 flex-1 justify-center py-2 rounded-[1.2rem] bg-transparent text-[#50725E] transition-all" data-target="review">
+                <svg class="w-5 h-5 nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="text-[13px] font-medium nav-text">复习</span>
+            </button>
+        </div>
+
+        <!-- 粘贴文本解析弹窗 -->
+        <div id="paste-modal" class="absolute inset-0 bg-[#1B3827]/40 backdrop-blur-sm z-50 hidden flex-col justify-end transition-opacity opacity-0">
+            <div class="bg-white rounded-t-[2.5rem] p-6 w-full transform translate-y-full transition-transform duration-300" id="paste-modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-xl text-dark-green">准备听写内容</h3>
+                    <button onclick="closePasteModal()" class="p-2 bg-gray-100 rounded-full text-gray-500">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <p class="text-xs text-muted-green mb-4 font-medium">请将需要听写的生字词粘贴到下方，使用空格或换行隔开即可。</p>
+                
+                <textarea id="dictate-input" class="w-full h-40 bg-[#EEF5F0] rounded-2xl p-4 text-dark-green font-bold focus:outline-none focus:ring-2 focus:ring-[#8BA896] resize-none mb-6" placeholder="例如：\n蜿蜒\n环境\n春意盎然"></textarea>
+                
+                <button onclick="startDictation()" class="w-full py-4 rounded-2xl theme-dark-green text-white font-bold text-lg shadow-lg shadow-green-900/20 card-hover flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    开始智能听写
+                </button>
+            </div>
+        </div>
+
+        <!-- AI 助手功能面板弹窗 -->
+        <div id="ai-modal" class="absolute inset-0 bg-[#1B3827]/40 backdrop-blur-sm z-50 hidden flex-col justify-end transition-opacity opacity-0">
+            <div class="bg-white rounded-t-[2.5rem] p-6 w-full transform translate-y-full transition-transform duration-300" id="ai-modal-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full theme-accent-yellow flex items-center justify-center soft-shadow">
+                            <svg class="w-5 h-5 text-dark-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                        </div>
+                        <h3 class="font-bold text-xl text-dark-green">AI 智能助手</h3>
+                    </div>
+                    <button onclick="closeAiModal()" class="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                
+                <p class="text-xs text-muted-green mb-4 font-medium px-1">我可以帮您自动分析薄弱点并生成针对性的复习任务。</p>
+                
+                <div class="space-y-3 mb-6">
+                    <button onclick="generateAIWords()" class="w-full bg-[#EEF5F0] border-2 border-[#D4E5D9] rounded-2xl p-4 flex items-center justify-between card-hover transition-colors hover:bg-[#D4E5D9]">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center soft-shadow">
+                                <svg class="w-5 h-5 text-[#8BA896]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                            </div>
+                            <div class="text-left">
+                                <h4 class="font-bold text-[15px] text-dark-green">一键生成易错词库</h4>
+                                <p class="text-[11px] text-muted-green mt-0.5">根据历史错题自动组卷出题</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-muted-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+
+                    <button onclick="showToast('正在分析错题本数据...')" class="w-full bg-[#EEF5F0] border-2 border-transparent rounded-2xl p-4 flex items-center justify-between card-hover">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center soft-shadow">
+                                <svg class="w-5 h-5 text-[#8BA896]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></svg>
+                            </div>
+                            <div class="text-left">
+                                <h4 class="font-bold text-[15px] text-dark-green">薄弱知识点分析</h4>
+                                <p class="text-[11px] text-muted-green mt-0.5">精准定位孩子复习重点</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-muted-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="absolute top-20 left-1/2 transform -translate-x-1/2 bg-[#1B3827]/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-[100] flex items-center gap-2">
+            <svg class="w-4 h-4 text-[#FCE588]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span id="toast-msg" class="text-xs font-bold tracking-wide">提示</span>
+        </div>
+
+    </div>
+
+    <!-- 高颜值 Canvas 动画及交互控制 JS -->
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 2000);
+        }
+
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.add('hidden'); el.classList.remove('fade-in');
+            });
+            const targetView = document.getElementById('view-' + tabId);
+            targetView.classList.remove('hidden');
+            void targetView.offsetWidth; 
+            targetView.classList.add('fade-in');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-[#EEF5F0]', 'text-dark-green');
+                btn.classList.add('bg-transparent', 'text-[#50725E]');
+                btn.querySelector('.nav-text').classList.remove('font-semibold');
+                btn.querySelector('.nav-text').classList.add('font-medium');
+            });
+
+            if(btnElement) {
+                btnElement.classList.remove('bg-transparent', 'text-[#50725E]');
+                btnElement.classList.add('bg-[#EEF5F0]', 'text-dark-green');
+                btnElement.querySelector('.nav-text').classList.remove('font-medium');
+                btnElement.querySelector('.nav-text').classList.add('font-semibold');
+            }
+        }
+
+        let wordsList = [];
+        let currentIndex = 0;
+        const synth = window.speechSynthesis;
+        let isAutoPlaying = false;
+        let autoPlayInterval = 5000;
+        let autoPlayTimer = null;
+
+        function openPasteModal() {
+            const modal = document.getElementById('paste-modal');
+            const content = document.getElementById('paste-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+            }, 10);
+            
+            if(!document.getElementById('dictate-input').value) {
+                document.getElementById('dictate-input').value = "苹果 香蕉\n蜿蜒曲折\n春意盎然";
+            }
+        }
+
+        function closePasteModal() {
+            const modal = document.getElementById('paste-modal');
+            const content = document.getElementById('paste-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function openAiModal() {
+            const modal = document.getElementById('ai-modal');
+            const content = document.getElementById('ai-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeAiModal() {
+            const modal = document.getElementById('ai-modal');
+            const content = document.getElementById('ai-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('translate-y-full');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function generateAIWords() {
+            showToast("AI 正在为您分析错题并组卷出题...");
+            closeAiModal();
+            setTimeout(() => {
+                document.getElementById('dictate-input').value = "犹豫不决\n蜿蜒曲折\n尴尬\n不知所措\n春意盎然";
+                openPasteModal();
+                showToast(`生成成功！已填入易错词`);
+            }, 1200);
+        }
+
+        function startDictation() {
+            const text = document.getElementById('dictate-input').value;
+            wordsList = text.split(/[\s,，]+/).filter(w => w.trim() !== '');
+            
+            if(wordsList.length === 0) {
+                showToast("请至少输入一个词语哦！");
+                return;
+            }
+
+            closePasteModal();
+            currentIndex = 0;
+            
+            document.getElementById('bottom-nav').classList.add('translate-y-[150%]');
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-player').classList.remove('hidden');
+            document.getElementById('view-player').classList.add('fade-in');
+
+            updatePlayerUI();
+            setTimeout(playCurrentWord, 500);
+        }
+
+        function exitPlayer() {
+            synth.cancel(); 
+            isAutoPlaying = false; 
+            clearTimeout(autoPlayTimer); 
+            
+            const btn = document.getElementById('btn-autoplay');
+            if(btn) {
+                btn.classList.add('theme-light-green', 'text-dark-green');
+                btn.classList.remove('bg-red-400', 'text-white');
+                document.getElementById('autoplay-text').textContent = '自动播放';
+                document.getElementById('autoplay-icon').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polygon points="10 8 16 12 10 16 10 8"/>';
+            }
+
+            document.getElementById('bottom-nav').classList.remove('translate-y-[150%]');
+            switchTab('dictate', document.querySelector('.nav-btn[data-target=\'dictate\']'));
+        }
+
+        function updatePlayerUI() {
+            document.getElementById('player-total-count').textContent = wordsList.length;
+            document.getElementById('player-current-index').textContent = currentIndex + 1;
+            
+            const wordEl = document.getElementById('player-word');
+            wordEl.textContent = wordsList[currentIndex];
+            wordEl.classList.add('blur-text');
+            wordEl.classList.remove('revealed');
+            
+            document.getElementById('eye-icon').innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>';
+            document.getElementById('player-hint').classList.remove('opacity-0');
+        }
+
+        function toggleReveal() {
+            const wordEl = document.getElementById('player-word');
+            const eyeIcon = document.getElementById('eye-icon');
+            
+            if(wordEl.classList.contains('revealed')) {
+                wordEl.classList.remove('revealed');
+                eyeIcon.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>';
+            } else {
+                wordEl.classList.add('revealed');
+                eyeIcon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+                document.getElementById('player-hint').classList.add('opacity-0');
+            }
+        }
+
+        function playCurrentWord() {
+            synth.cancel(); 
+            clearTimeout(autoPlayTimer); 
+
+            const word = wordsList[currentIndex];
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.rate = 0.85; 
+            utterance.pitch = 1;
+            
+            const voices = synth.getVoices();
+            const targetVoice = voices.find(v => v.lang.includes('zh'));
+            if(targetVoice) utterance.voice = targetVoice;
+
+            const btn = document.querySelector('[onclick="playCurrentWord()"]');
+            if(btn) {
+                btn.classList.add('scale-110');
+                setTimeout(() => btn.classList.remove('scale-110'), 200);
+            }
+
+            utterance.onend = () => {
+                if(isAutoPlaying) {
+                    if(currentIndex < wordsList.length - 1) {
+                        autoPlayTimer = setTimeout(() => {
+                            nextWord();
+                        }, autoPlayInterval);
+                    } else {
+                        toggleAutoPlay(); 
+                        showToast("听写完成啦！");
+                    }
+                }
+            };
+            synth.speak(utterance);
+        }
+
+        function nextWord() {
+            if(currentIndex < wordsList.length - 1) {
+                currentIndex++;
+                updatePlayerUI();
+                playCurrentWord();
+            } else {
+                showToast("已经是最后一个词啦！");
+            }
+        }
+
+        function prevWord() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updatePlayerUI();
+                playCurrentWord();
+            } else {
+                showToast("这是第一个词哦！");
+            }
+        }
+
+        function changeInterval(val) {
+            autoPlayInterval = parseInt(val) * 1000;
+            showToast(`播放间隔已设为 ${val} 秒`);
+        }
+
+        function toggleAutoPlay() {
+            isAutoPlaying = !isAutoPlaying;
+            const btn = document.getElementById('btn-autoplay');
+            const icon = document.getElementById('autoplay-icon');
+            const text = document.getElementById('autoplay-text');
+
+            if(isAutoPlaying) {
+                btn.classList.remove('theme-light-green', 'text-dark-green');
+                btn.classList.add('bg-red-400', 'text-white');
+                text.textContent = '停止自动';
+                icon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>';
+                showToast(`已开启自动播放（间隔${autoPlayInterval/1000}秒）`);
+                if(!synth.speaking) {
+                    playCurrentWord();
+                }
+            } else {
+                btn.classList.add('theme-light-green', 'text-dark-green');
+                btn.classList.remove('bg-red-400', 'text-white');
+                text.textContent = '自动播放';
+                icon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polygon points="10 8 16 12 10 16 10 8"/>';
+                clearTimeout(autoPlayTimer);
+                showToast("已停止自动播放");
+            }
+        }
+
+        // ==========================================
+        // 核心亮点：高颜值 Canvas 魔法角色与星光动画渲染
+        // ==========================================
+        function initHeroCanvas() {
+            const canvas = document.getElementById('heroCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            // 高清屏幕适配
+            const dpr = window.devicePixelRatio || 2;
+            const width = 260; 
+            const height = 180; 
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+
+            // 初始化背景漂浮魔法粒子
+            const particles = Array.from({length: 12}).map(() => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 3 + 2,
+                speedY: Math.random() * -0.5 - 0.2,
+                speedX: Math.random() * 0.4 - 0.2,
+                phase: Math.random() * Math.PI * 2,
+                type: Math.random() > 0.5 ? 'star' : 'dot',
+                color: Math.random() > 0.5 ? '#FCE588' : '#8BA896'
+            }));
+
+            // 逐帧渲染循环
+            function draw(time) {
+                const t = time / 1000;
+                ctx.clearRect(0, 0, width, height);
+
+                // 1. 绘制魔法粒子层
+                particles.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX + Math.sin(t + p.phase) * 0.2;
+                    // 粒子越界循环
+                    if(p.y < -20) p.y = height + 20;
+                    if(p.x < -20) p.x = width + 20;
+                    if(p.x > width + 20) p.x = -20;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(t * p.speedX * 5 + p.phase);
+                    ctx.fillStyle = p.color;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = p.color;
+
+                    if (p.type === 'star') {
+                        // 绘制闪耀的十字星
+                        ctx.beginPath();
+                        for(let i=0; i<4; i++) {
+                            ctx.lineTo(0, -p.size);
+                            ctx.quadraticCurveTo(0, 0, p.size, 0);
+                            ctx.rotate(Math.PI/2);
+                        }
+                        ctx.fill();
+                    } else {
+                        // 绘制小圆点
+                        ctx.beginPath();
+                        ctx.arc(0, 0, p.size/1.5, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                });
+
+                // 2. 绘制软糯可爱的精灵主体
+                const cx = 130; // 屏幕中心
+                const cy = 100;
+                
+                // 计算动画缓动参数
+                const breath = Math.sin(t * 2.5) * 4;     // 呼吸上下浮动
+                const writeAnim = Math.sin(t * 15) * 0.05; // 写字轻微抖动
+                const earAnim = Math.sin(t * 3) * 0.08;    // 呆萌的耳朵拍打
+
+                ctx.save();
+                ctx.translate(cx, cy);
+
+                // --- 画桌子 ---
+                ctx.lineWidth = 4.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#1B3827';
+                ctx.beginPath(); 
+                ctx.moveTo(-110, 50); 
+                ctx.lineTo(110, 50); 
+                ctx.stroke();
+
+                // --- 画纸张 ---
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); 
+                ctx.moveTo(-50, 50); 
+                ctx.lineTo(40, 50); 
+                ctx.lineTo(30, 25); 
+                ctx.lineTo(-40, 25); 
+                ctx.closePath();
+                ctx.fill(); 
+                ctx.stroke();
+
+                // 纸上的字迹线条
+                ctx.lineWidth = 2.5;
+                ctx.beginPath(); 
+                ctx.moveTo(-30, 35); 
+                ctx.lineTo(15, 35);
+                ctx.moveTo(-35, 43); 
+                ctx.lineTo(20, 43); 
+                ctx.stroke();
+                ctx.lineWidth = 4.5; // 恢复主线条粗细
+
+                // 注入呼吸动画，使角色主体上下浮动
+                ctx.translate(0, breath);
+
+                // --- 画两只软萌的耳朵 ---
+                ctx.fillStyle = '#FFFFFF';
+                // 左耳
+                ctx.save(); 
+                ctx.translate(-35, -45); 
+                ctx.rotate(-earAnim - 0.2);
+                ctx.beginPath(); 
+                ctx.ellipse(0, 0, 15, 20, 0, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke(); 
+                ctx.restore();
+                // 右耳
+                ctx.save(); 
+                ctx.translate(35, -45); 
+                ctx.rotate(earAnim + 0.2);
+                ctx.beginPath(); 
+                ctx.ellipse(0, 0, 15, 20, 0, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke(); 
+                ctx.restore();
+
+                // --- 画圆糯糯的身体/头部 (使用贝塞尔曲线打造软糖质感) ---
+                ctx.beginPath();
+                ctx.moveTo(0, -50);
+                ctx.bezierCurveTo(45, -50, 65, -15, 65, 15);
+                ctx.bezierCurveTo(65, 45, 40, 55, 0, 55);
+                ctx.bezierCurveTo(-40, 55, -65, 45, -65, 15);
+                ctx.bezierCurveTo(-65, -15, -45, -50, 0, -50);
+                ctx.fill(); 
+                ctx.stroke();
+
+                // --- 头部萌芽 (治愈绿主题象征) ---
+                ctx.save(); 
+                ctx.translate(0, -48); 
+                ctx.rotate(Math.sin(t*2)*0.1);
+                ctx.lineWidth = 3; 
+                ctx.strokeStyle = '#2C5E43'; 
+                ctx.fillStyle = '#D4E5D9';
+                ctx.beginPath(); 
+                ctx.moveTo(0,0); 
+                ctx.quadraticCurveTo(-6, -10, -3, -18); 
+                ctx.stroke();
+                // 树叶
+                ctx.beginPath(); 
+                ctx.ellipse(-3, -18, 6, 3, -Math.PI/4, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke();
+                ctx.beginPath(); 
+                ctx.ellipse(2, -10, 5, 2.5, Math.PI/4, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke();
+                ctx.restore();
+
+                // --- 画五官表情 ---
+                ctx.fillStyle = '#1B3827';
+                ctx.strokeStyle = '#1B3827';
+                // 眼睛
+                ctx.beginPath(); 
+                ctx.arc(-20, -5, 3.5, 0, Math.PI*2); 
+                ctx.fill();
+                ctx.beginPath(); 
+                ctx.arc(20, -5, 3.5, 0, Math.PI*2); 
+                ctx.fill();
+                // 萌系小嘴巴 (w形)
+                ctx.lineWidth = 2.5;
+                ctx.beginPath(); 
+                ctx.moveTo(-5, 5); 
+                ctx.quadraticCurveTo(-2, 8, 0, 5); 
+                ctx.quadraticCurveTo(2, 8, 5, 5); 
+                ctx.stroke();
+                ctx.lineWidth = 4.5;
+
+                // --- 画腮红 ---
+                ctx.globalAlpha = 0.5; 
+                ctx.fillStyle = '#FCA5A5';
+                ctx.beginPath(); 
+                ctx.ellipse(-30, 8, 8, 5, 0, 0, Math.PI*2); 
+                ctx.fill();
+                ctx.beginPath(); 
+                ctx.ellipse(30, 8, 8, 5, 0, 0, Math.PI*2); 
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+
+                // --- 撑桌子的手 (角色左手，画面右侧) ---
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); 
+                ctx.ellipse(35, 45, 14, 10, -Math.PI/8, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke();
+
+                // --- 铅笔 (改到画面左侧) ---
+                ctx.save(); 
+                ctx.translate(-42, 35); 
+                ctx.rotate(-Math.PI/6 + writeAnim);
+                // 笔杆
+                ctx.fillStyle = '#FCE588'; 
+                ctx.beginPath(); 
+                ctx.rect(-8, -35, 16, 50); 
+                ctx.fill(); 
+                ctx.stroke();
+                // 笔木头部分
+                ctx.fillStyle = '#FDF7E3'; 
+                ctx.beginPath(); 
+                ctx.moveTo(-8, 15); 
+                ctx.lineTo(8, 15); 
+                ctx.lineTo(0, 30); 
+                ctx.closePath(); 
+                ctx.fill(); 
+                ctx.stroke();
+                // 笔尖
+                ctx.fillStyle = '#1B3827'; 
+                ctx.beginPath(); 
+                ctx.moveTo(-3, 25); 
+                ctx.lineTo(3, 25); 
+                ctx.lineTo(0, 30); 
+                ctx.closePath(); 
+                ctx.fill();
+                ctx.restore();
+
+                // --- 握笔的手 (角色右手，画面左侧) ---
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); 
+                ctx.ellipse(-35, 35, 14, 10, Math.PI/8, 0, Math.PI*2); 
+                ctx.fill(); 
+                ctx.stroke();
+
+                ctx.restore();
+                
+                // 请求下一帧动画
+                requestAnimationFrame(draw);
+            }
+            
+            // 启动渲染引擎
+            requestAnimationFrame(draw);
+        }
+
+        // 页面加载完毕后触发 Canvas 渲染
+        window.addEventListener('DOMContentLoaded', initHeroCanvas);
+    </script>
+</body>
+</html>

@@ -9,39 +9,21 @@
       </view>
     </view>
 
-    <view class="floating-rail">
-      <view class="assistant-rail" bindtap="openAiModal">
-        <image class="assistant-rail__icon" src="{{icons.botGreen}}" mode="aspectFit" />
-        <text class="assistant-rail__text">AI助手</text>
-      </view>
-    </view>
-
     <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:if="{{activeView === 'dictate'}}">
         <view class="home-view fade-in-view">
-          <view class="page-header">
+          <view class="page-header page-header--home">
             <view>
-              <text class="page-title">Relax, Mom</text>
-              <text class="page-subtitle">Take a breath</text>
+              <text class="page-title page-title--home font-en">Relax, Mom</text>
+              <text class="page-subtitle page-subtitle--home font-en">Take a breath</text>
             </view>
-            <view class="leaf-badge">
+            <view class="leaf-badge leaf-badge--home">
               <image class="leaf-badge__icon" src="{{icons.leafDark}}" mode="aspectFit" />
             </view>
           </view>
 
           <view class="hero-section">
-            <view class="hero-glow"></view>
-            <image class="hero-mark hero-mark--left" src="{{icons.sparklesPink}}" mode="aspectFit" />
-            <image class="hero-mark hero-mark--right" src="{{icons.starGreen}}" mode="aspectFit" />
-            <image class="hero-illustration" src="/assets/illustrations/home-hero.svg" mode="aspectFit" />
-            <view class="hero-copy">
-              <text class="hero-copy__cn hero-copy__cn--first">默</text>
-              <text class="hero-copy__cn hero-copy__cn--second">写</text>
-              <text class="hero-copy__en hero-copy__en--first">G</text>
-              <text class="hero-copy__en hero-copy__en--second">O</text>
-              <text class="hero-copy__en hero-copy__en--third">G</text>
-              <text class="hero-copy__en hero-copy__en--fourth">O</text>
-            </view>
+            <image class="hero-artwork" src="/assets/illustrations/home-hero.png" mode="aspectFit" />
           </view>
 
           <view class="tool-grid">
@@ -71,10 +53,28 @@
             </view>
           </view>
 
+          <view class="home-ai-card" bindtap="openAiModal">
+            <view class="home-ai-card__content">
+              <view class="home-ai-card__badge">
+                <image class="home-ai-card__icon" src="{{icons.botDark}}" mode="aspectFit" />
+              </view>
+              <view class="home-ai-card__texts">
+                <view class="home-ai-card__title-row">
+                  <text class="home-ai-card__title">AI 智能助手</text>
+                  <image class="home-ai-card__spark" src="{{icons.sparklesPink}}" mode="aspectFit" />
+                </view>
+                <text class="home-ai-card__desc">一键生成易错词库，精准复习</text>
+              </view>
+            </view>
+            <view class="home-ai-card__arrow-wrap">
+              <image class="home-ai-card__arrow" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
+            </view>
+          </view>
+
           <view class="review-banner" bindtap="goToReview">
             <view>
               <text class="review-banner__title">今日轻松复习</text>
-              <text class="review-banner__subtitle">Review &amp; Go play</text>
+              <text class="review-banner__subtitle">Review & Go play</text>
             </view>
             <view class="review-banner__action">
               <image class="review-banner__action-icon" src="{{icons.arrowRightWhite}}" mode="aspectFit" />
@@ -92,7 +92,6 @@
             </view>
             <view class="player-topbar__center">
               <text class="player-topbar__title">听写进行中</text>
-              <text class="player-topbar__meta">{{playerTaskMeta}}</text>
             </view>
             <view class="circle-button circle-button--ghost" bindtap="handleSaveProgress">
               <image class="circle-button__icon" src="{{icons.saveDark}}" mode="aspectFit" />
@@ -165,6 +164,20 @@
             <text class="empty-card__title">拍默写本批改</text>
             <text class="empty-card__desc">系统自动比对标准答案{{'\n'}}你只需喝口茶</text>
           </view>
+
+          <text class="section-heading">最近批改记录</text>
+          <view class="record-card">
+            <view class="record-card__content">
+              <view class="record-card__score">
+                <text class="record-card__score-text">{{recentCorrection.score}}</text>
+              </view>
+              <view>
+                <text class="record-card__title">{{recentCorrection.title}}</text>
+                <text class="record-card__meta">{{recentCorrection.meta}}</text>
+              </view>
+            </view>
+            <image class="record-card__arrow" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
+          </view>
         </view>
       </block>
 
@@ -178,12 +191,32 @@
             <image class="page-header__side-icon" src="{{icons.targetDark}}" mode="aspectFit" />
           </view>
 
-          <view class="mistake-card">
-            <text class="mistake-card__label">Standard</text>
-            <text class="mistake-card__word">蜿蜒</text>
-            <view class="mistake-card__answer">
-              <text class="mistake-card__wrong">碗延</text>
-              <text class="mistake-card__tip">注意是“虫”字旁哦</text>
+          <scroll-view class="mistake-filter-row" scroll-x enhanced show-scrollbar="{{false}}">
+            <view class="mistake-filter-row__inner">
+              <view
+                wx:for="{{mistakeFilters}}"
+                wx:key="key"
+                class="mistake-filter {{item.active ? 'mistake-filter--active' : ''}}"
+                bindtap="setMistakeFilter"
+                data-filter="{{item.key}}"
+              >
+                {{item.label}}
+              </view>
+            </view>
+          </scroll-view>
+
+          <view class="mistake-list">
+            <view wx:for="{{displayMistakes}}" wx:key="id" class="mistake-card">
+              <view wx:if="{{item.badge}}" class="mistake-card__badge">{{item.badge}}</view>
+              <text class="mistake-card__label">Standard</text>
+              <view class="mistake-card__word-row">
+                <text class="mistake-card__word">{{item.word}}</text>
+                <text wx:if="{{item.phonetic}}" class="mistake-card__phonetic">({{item.phonetic}})</text>
+              </view>
+              <view class="mistake-card__answer">
+                <text class="mistake-card__wrong">{{item.wrong}}</text>
+                <text class="mistake-card__tip">{{item.tip}}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -211,26 +244,44 @@
               <image class="review-target-card__button-icon" src="{{icons.playWhite}}" mode="aspectFit" />
             </view>
           </view>
+
+          <view class="review-timeline">
+            <view wx:for="{{reviewTimeline}}" wx:key="id" class="review-timeline__item {{item.dimmed ? 'review-timeline__item--dimmed' : ''}}">
+              <view class="review-timeline__marker">
+                <view class="review-timeline__dot {{item.active ? 'review-timeline__dot--active' : ''}}"></view>
+              </view>
+              <view class="review-timeline__content">
+                <text class="review-timeline__label {{item.active ? 'review-timeline__label--active' : ''}}">{{item.label}}</text>
+                <view class="review-task-card">
+                  <view class="review-task-card__content">
+                    <text class="review-task-card__title">{{item.title}}</text>
+                    <text class="review-task-card__meta">{{item.subtitle}}</text>
+                  </view>
+                  <text wx:if="{{item.status}}" class="review-task-card__status">{{item.status}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
         </view>
       </block>
     </scroll-view>
 
     <view wx:if="{{activeView !== 'player'}}" class="bottom-nav">
-      <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="dictate">
+      <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="dictate">
         <image class="nav-item__icon" src="{{activeView === 'dictate' ? icons.homeDark : icons.homeMuted}}" mode="aspectFit" />
-        <text wx:if="{{activeView === 'dictate'}}" class="nav-item__text">主页</text>
+        <text class="nav-item__text {{activeView === 'dictate' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">主页</text>
       </view>
-      <view class="nav-item {{activeView === 'grade' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="grade">
+      <view class="nav-item {{activeView === 'grade' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="grade">
         <image class="nav-item__icon" src="{{activeView === 'grade' ? icons.checkSquareDark : icons.checkSquareMuted}}" mode="aspectFit" />
-        <text wx:if="{{activeView === 'grade'}}" class="nav-item__text">批改</text>
+        <text class="nav-item__text {{activeView === 'grade' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">批改</text>
       </view>
-      <view class="nav-item {{activeView === 'mistakes' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="mistakes">
+      <view class="nav-item {{activeView === 'mistakes' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="mistakes">
         <image class="nav-item__icon" src="{{activeView === 'mistakes' ? icons.bookXDark : icons.bookXMuted}}" mode="aspectFit" />
-        <text wx:if="{{activeView === 'mistakes'}}" class="nav-item__text">错题</text>
+        <text class="nav-item__text {{activeView === 'mistakes' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">错题</text>
       </view>
-      <view class="nav-item {{activeView === 'review' ? 'nav-item--active' : ''}}" bindtap="switchTab" data-view="review">
+      <view class="nav-item {{activeView === 'review' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="review">
         <image class="nav-item__icon" src="{{activeView === 'review' ? icons.calendarDark : icons.calendarMuted}}" mode="aspectFit" />
-        <text wx:if="{{activeView === 'review'}}" class="nav-item__text">复习</text>
+        <text class="nav-item__text {{activeView === 'review' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">复习</text>
       </view>
     </view>
 
@@ -242,45 +293,7 @@
             <image class="sheet-close__icon" src="{{icons.xMuted}}" mode="aspectFit" />
           </view>
         </view>
-        <text class="sheet-note">创建任务前先明确学科和模式，本阶段不做自动推断。</text>
-
-        <view class="config-block">
-          <text class="config-block__title">选择学科</text>
-          <view class="selector-row">
-            <view
-              wx:for="{{subjectOptions}}"
-              wx:key="key"
-              class="selector-chip {{item.active ? 'selector-chip--active' : ''}}"
-              bindtap="setSubject"
-              data-subject="{{item.key}}"
-            >
-              {{item.label}}
-            </view>
-          </view>
-        </view>
-
-        <view class="config-block">
-          <text class="config-block__title">选择模式</text>
-          <view class="mode-grid">
-            <view
-              wx:for="{{modeOptions}}"
-              wx:key="key"
-              class="mode-card {{item.active ? 'mode-card--active' : ''}} {{item.disabled ? 'mode-card--disabled' : ''}}"
-              bindtap="selectMode"
-              data-mode="{{item.key}}"
-            >
-              <text class="mode-card__title">{{item.label}}</text>
-              <text class="mode-card__desc">{{item.desc}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="selection-summary">
-          <text class="selection-summary__label">当前任务</text>
-          <text class="selection-summary__value">{{taskSummaryText}}</text>
-        </view>
-
-        <text class="split-rule">{{splitRuleText}}</text>
+        <text class="sheet-note">直接粘贴内容即可。系统会自动拆分条目，并识别中文或英文进行对应播报。</text>
 
         <textarea
           class="sheet-textarea"

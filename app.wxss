@@ -1,20 +1,34 @@
 page {
   background: #e8f0ea;
   color: #1b3827;
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
 }
 
 view,
 text,
-image,
-scroll-view,
 textarea,
-picker {
+picker,
+input,
+button {
+  box-sizing: border-box;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+image,
+scroll-view {
   box-sizing: border-box;
 }
 
 image {
   display: block;
+}
+
+.font-zh {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+.font-en {
+  font-family: "Caveat Brush", "Times New Roman", serif;
 }
 
 button::after {

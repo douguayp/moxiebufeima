@@ -44,257 +44,271 @@ const ICONS = {
 
 const INTERVAL_SECONDS = [3, 5, 8, 10];
 
-const SUBJECT_OPTIONS = [
-  { key: "zh", label: "语文" },
-  { key: "en", label: "英语" },
-];
+const PASTE_PLACEHOLDER = "例如：\n苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
+const DEFAULT_PASTE_INPUT = "苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
+const GENERATED_PASTE_INPUT = "苹果 Apple 蜿蜒 Environment\nbeautiful awkward\nWe practice after dinner.";
 
-const MODE_DEFINITIONS = [
-  {
-    key: "phrase",
-    label: "词语",
-    desc: "语文词语",
-    supportsZh: true,
-    supportsEn: false,
-  },
-  {
-    key: "word",
-    label: "单词",
-    desc: "英语单词",
-    supportsZh: false,
-    supportsEn: true,
-  },
-  {
-    key: "sentence",
-    label: "短句",
-    desc: "英语短句",
-    supportsZh: false,
-    supportsEn: true,
-  },
-];
-
-const TASK_CONFIGS = {
-  zh: {
-    phrase: {
-      placeholder: "例如：\n蜿蜒\n环境\n春意盎然",
-      sampleInput: "蜿蜒 环境\n春意盎然\n专心致志",
-      generatedInput: "犹豫不决\n蜿蜒曲折\n春意盎然\n专心致志\n不知所措",
-      playerLabel: "当前听写词语",
-    },
-  },
-  en: {
-    word: {
-      placeholder: "例如：\nApple\nBanana\nEnvironment",
-      sampleInput: "Apple Banana\nEnvironment\nBeautiful",
-      generatedInput: "Vocabulary\nEnvironment\nBeautiful\nAwkward\nHesitate",
-      playerLabel: "当前听写单词",
-    },
-    sentence: {
-      placeholder: "例如：\nI go to school.\nShe reads every day.\nThe sun is warm.",
-      sampleInput: "I go to school.\nShe reads every day.\nThe sun is warm.",
-      generatedInput: "I can finish my dictation.\nShe reads English every night.\nWe practice after dinner.",
-      playerLabel: "当前听写短句",
-    },
-  },
+const RECENT_CORRECTION = {
+  score: "100",
+  title: "英语 三年级上册",
+  meta: "刚刚 · 全对！",
 };
 
-const ANALYSIS_PRESETS = {
-  zh: {
-    generic: {
-      title: "语文薄弱点分析",
-      subtitle: "Mock 结果：最近更容易在字形辨认和偏旁位置上出错。",
-      actionText: "继续生成语文词语任务",
-      items: [
-        {
-          title: "形近字混淆",
-          desc: "“蜿蜒 / 碗延”这类字形接近的词，仍然是当前高频错误点。",
-        },
-        {
-          title: "偏旁定位不稳",
-          desc: "虫字旁、言字旁这类细节容易漏写，建议优先复习高频偏旁。",
-        },
-        {
-          title: "长词连续书写易断",
-          desc: "四字词语在听写时容易漏掉中间字，建议分节奏重复播报。",
-        },
-      ],
-    },
+const MISTAKE_ITEMS = [
+  {
+    id: "mistake-zh-1",
+    subject: "zh",
+    badge: "复错 1 次",
+    word: "蜿蜒",
+    phonetic: "wān yán",
+    wrong: "碗延",
+    tip: "注意是“虫”字旁哦",
   },
-  en: {
-    generic: {
-      title: "英语薄弱点分析",
-      subtitle: "Mock 结果：当前主要问题集中在拼写细节和句子停顿节奏。",
-      actionText: "继续生成英语任务",
-      items: [
-        {
-          title: "元音字母易混",
-          desc: "environment、beautiful 这类词的元音组合仍然最容易写错。",
-        },
-        {
-          title: "词尾细节缺失",
-          desc: "复数、过去式和第三人称单数的词尾遗漏比较常见。",
-        },
-        {
-          title: "短句标点与大小写不稳",
-          desc: "句首大写和句尾句号容易漏掉，短句模式要单独提醒。",
-        },
-      ],
-    },
-    word: {
-      title: "英语单词薄弱点分析",
-      subtitle: "Mock 结果：单词听写更容易卡在拼写顺序和词尾变化。",
-      actionText: "继续生成英语单词任务",
-      items: [
-        {
-          title: "长单词顺序混乱",
-          desc: "environment、vocabulary 这类词在中间字母顺序上最容易出错。",
-        },
-        {
-          title: "词尾书写不完整",
-          desc: "beautiful、careful 这类词常漏写 -ful、-tion 等结尾结构。",
-        },
-        {
-          title: "重复听写后正确率提升明显",
-          desc: "单词模式适合开启自动播放，控制稳定节奏后表现更好。",
-        },
-      ],
-    },
-    sentence: {
-      title: "英语短句薄弱点分析",
-      subtitle: "Mock 结果：短句整体能跟上，但句首大小写和停顿记忆还不稳定。",
-      actionText: "继续生成英语短句任务",
-      items: [
-        {
-          title: "句首大写容易漏掉",
-          desc: "进入书写阶段后，常把句首字母直接写成小写。",
-        },
-        {
-          title: "按空格记忆优于整句记忆",
-          desc: "建议保持“每行一条”的短句模式，不要再拆成单词模式。",
-        },
-        {
-          title: "句尾标点感知偏弱",
-          desc: "短句结束后补句号的意识还不够，需要在复习时重复提醒。",
-        },
-      ],
-    },
+  {
+    id: "mistake-en-1",
+    subject: "en",
+    badge: "",
+    word: "environment",
+    phonetic: "",
+    wrong: "enviroment",
+    tip: "漏掉了中间的字母 n",
   },
-};
+];
 
-function getSubjectLabel(subject) {
-  const target = SUBJECT_OPTIONS.find((item) => item.key === subject);
-  return target ? target.label : "语文";
+const REVIEW_TIMELINE = [
+  {
+    id: "review-today",
+    label: "Today",
+    title: "语文一单元",
+    subtitle: "艾宾浩斯 第 2 天",
+    status: "待复习",
+    active: true,
+    dimmed: false,
+  },
+  {
+    id: "review-tomorrow",
+    label: "Tomorrow",
+    title: "英语 Module 1",
+    subtitle: "艾宾浩斯 第 3 天",
+    status: "",
+    active: false,
+    dimmed: true,
+  },
+];
+
+function detectItemLanguage(text) {
+  const hasZh = /[\u4e00-\u9fff]/.test(text);
+  const hasEn = /[A-Za-z]/.test(text);
+
+  if (hasZh && hasEn) {
+    return "mixed";
+  }
+
+  if (hasZh) {
+    return "zh";
+  }
+
+  if (hasEn) {
+    return "en";
+  }
+
+  return "unknown";
 }
 
-function getModeLabel(mode) {
-  const target = MODE_DEFINITIONS.find((item) => item.key === mode);
-  return target ? target.label : "";
+function getLanguageLabel(language) {
+  if (language === "zh") return "中文";
+  if (language === "en") return "English";
+  if (language === "mixed") return "中英混合";
+  return "未识别";
 }
 
-function isModeSupported(subject, mode) {
-  const target = MODE_DEFINITIONS.find((item) => item.key === mode);
+function getPlayerCardLabel(language) {
+  if (language === "zh") return "当前听写内容 · 中文";
+  if (language === "en") return "当前听写内容 · English";
+  if (language === "mixed") return "当前听写内容 · 中英混合";
+  return "当前听写内容";
+}
 
-  if (!target) {
+function shouldSplitInline(line) {
+  const tokens = line.split(/[\s,，;；]+/).map((item) => item.trim()).filter(Boolean);
+
+  if (tokens.length <= 1) {
     return false;
   }
 
-  return subject === "zh" ? target.supportsZh : target.supportsEn;
-}
-
-function buildSubjectOptions(currentSubject) {
-  return SUBJECT_OPTIONS.map((item) => ({
-    ...item,
-    active: item.key === currentSubject,
-  }));
-}
-
-function buildModeOptions(currentSubject, selectedMode) {
-  return MODE_DEFINITIONS.map((item) => {
-    const disabled = !isModeSupported(currentSubject, item.key);
-
-    return {
-      ...item,
-      disabled,
-      active: !disabled && item.key === selectedMode,
-    };
-  });
-}
-
-function getTaskConfig(subject, mode) {
-  return TASK_CONFIGS[subject] && TASK_CONFIGS[subject][mode] ? TASK_CONFIGS[subject][mode] : null;
-}
-
-function getSplitRuleText(subject, mode) {
-  if (!mode) {
-    return `请先选择${getSubjectLabel(subject)}任务模式，再粘贴需要听写的内容。`;
+  if (/[。！？.!?]/.test(line)) {
+    return false;
   }
 
-  if (mode === "sentence") {
-    return "短句模式按每行一条拆分，不按空格拆。";
+  const hasZh = /[\u4e00-\u9fff]/.test(line);
+  const hasEn = /[A-Za-z]/.test(line);
+
+  if (hasZh && hasEn) {
+    return true;
   }
 
-  return `${getModeLabel(mode)}模式按空格或换行拆分。`;
+  if (!hasZh && hasEn) {
+    const allAlphaTokens = tokens.every((token) => /^[A-Za-z'-]+$/.test(token));
+    const allCapitalized = tokens.every((token) => /^[A-Z]/.test(token));
+
+    if (allAlphaTokens && (tokens.length <= 2 || allCapitalized)) {
+      return true;
+    }
+
+    if (tokens.length > 2) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
-function splitInputByMode(input, mode) {
+function splitDictationInput(input) {
   if (!input.trim()) {
     return [];
   }
 
-  if (mode === "sentence") {
-    return input
-      .split(/\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
+  const items = [];
 
-  return input
-    .split(/[\s,，]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  input
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      if (shouldSplitInline(line)) {
+        line
+          .split(/[\s,，;；]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .forEach((text) => {
+            items.push(text);
+          });
+        return;
+      }
+
+      items.push(line);
+    });
+
+  return items.map((text, index) => {
+    const language = detectItemLanguage(text);
+
+    return {
+      id: `item-${index}`,
+      text,
+      language,
+      languageLabel: getLanguageLabel(language),
+    };
+  });
 }
 
-function getAnalysisPreset(subject, mode) {
-  const subjectPreset = ANALYSIS_PRESETS[subject];
+function buildAnalysisPreset(playerItems) {
+  const counts = playerItems.reduce(
+    (result, item) => {
+      result[item.language] = (result[item.language] || 0) + 1;
+      return result;
+    },
+    { zh: 0, en: 0, mixed: 0, unknown: 0 }
+  );
 
-  if (!subjectPreset) {
-    return ANALYSIS_PRESETS.zh.generic;
+  if ((counts.zh > 0 && counts.en > 0) || counts.mixed > 0) {
+    return {
+      title: "混合语言内容分析",
+      subtitle: "Mock 结果：检测到中英文混合内容，建议保持自动语言识别播报。",
+      actionText: "继续生成混合默写任务",
+      items: [
+        {
+          title: "中英文条目已自动拆开",
+          desc: "像“苹果 Apple 蜿蜒 Environment”这类输入会优先拆成独立条目，再分别识别语言。",
+        },
+        {
+          title: "英文内容更适合慢速播报",
+          desc: "后续接入真实 TTS 时，英文单词和短句建议保持更慢语速，减少拼写误听。",
+        },
+        {
+          title: "中文内容继续保持规范字形",
+          desc: "当前学习界面会优先使用清晰标准字体，避免影响识字和默写训练。",
+        },
+      ],
+    };
   }
 
-  if (mode && subjectPreset[mode]) {
-    return subjectPreset[mode];
+  if (counts.en > 0) {
+    return {
+      title: "英语内容分析",
+      subtitle: "Mock 结果：当前任务以英文内容为主，建议重点关注拼写与停顿节奏。",
+      actionText: "继续生成英语默写任务",
+      items: [
+        {
+          title: "长单词建议单独拆条",
+          desc: "environment、beautiful 这类词单独成条时，更利于跟随播报逐个书写。",
+        },
+        {
+          title: "英文短句建议整行保留",
+          desc: "带空格的完整英文句子会优先按整行处理，避免被错误切碎。",
+        },
+        {
+          title: "后续可接真实英文语音",
+          desc: "当前阶段先保留语言识别和 mock 播报链路，后续再替换成真实英语 TTS。",
+        },
+      ],
+    };
   }
 
-  return subjectPreset.generic;
+  return {
+    title: "中文内容分析",
+    subtitle: "Mock 结果：当前任务以中文内容为主，建议重点复习字形和偏旁细节。",
+    actionText: "继续生成中文默写任务",
+    items: [
+      {
+        title: "形近字仍是高频问题",
+        desc: "“蜿蜒 / 碗延”这类字形相近内容，依然适合作为重点复习对象。",
+      },
+      {
+        title: "中文词语适合逐条播报",
+        desc: "短词和四字词优先拆成单条，可明显降低听写时的遗漏概率。",
+      },
+      {
+        title: "界面继续使用标准字体",
+        desc: "学习内容默认保持清晰规范字形，避免影响孩子对生字结构的判断。",
+      },
+    ],
+  };
+}
+
+function buildMistakeFilters(activeFilter) {
+  return [
+    { key: "all", label: "全部 (6)", active: activeFilter === "all" },
+    { key: "zh", label: "语文 (4)", active: activeFilter === "zh" },
+    { key: "en", label: "英语 (2)", active: activeFilter === "en" },
+  ];
+}
+
+function getDisplayedMistakes(activeFilter) {
+  if (activeFilter === "all") {
+    return MISTAKE_ITEMS;
+  }
+
+  return MISTAKE_ITEMS.filter((item) => item.subject === activeFilter);
 }
 
 Page({
   data: {
     icons: ICONS,
     statusBarHeight: 20,
-    subjectOptions: buildSubjectOptions("zh"),
-    modeOptions: buildModeOptions("zh", ""),
     activeView: "dictate",
-    currentSubject: "zh",
-    currentSubjectLabel: "语文",
-    selectedMode: "",
-    selectedModeLabel: "请选择模式",
-    taskSummaryText: "语文 · 请选择模式",
     showPasteModal: false,
     showAiModal: false,
     showAnalysisSheet: false,
     showToast: false,
     toastMessage: "提示",
     pasteInput: "",
-    pastePlaceholder: "请先选择语文任务模式，再粘贴需要听写的内容。",
-    splitRuleText: "请先选择语文任务模式，再粘贴需要听写的内容。",
-    playerWords: [],
+    pastePlaceholder: PASTE_PLACEHOLDER,
+    playerItems: [],
     playerWord: "",
     currentPlayerIndex: 0,
     currentPlayerDisplay: 0,
     playerTotalCount: 0,
     playerCardLabel: "当前听写内容",
-    playerTaskMeta: "请选择学科与模式",
     revealed: false,
     autoPlayEnabled: false,
     intervalOptions: ["3秒", "5秒", "8秒", "10秒"],
@@ -304,6 +318,11 @@ Page({
     analysisSubtitle: "",
     analysisActionText: "",
     analysisItems: [],
+    recentCorrection: RECENT_CORRECTION,
+    activeMistakeFilter: "all",
+    mistakeFilters: buildMistakeFilters("all"),
+    displayMistakes: getDisplayedMistakes("all"),
+    reviewTimeline: REVIEW_TIMELINE,
   },
 
   onLoad() {
@@ -337,24 +356,11 @@ Page({
     }
   },
 
-  syncSelectionState(subject = this.data.currentSubject, selectedMode = this.data.selectedMode, extraData = {}) {
-    const safeMode = isModeSupported(subject, selectedMode) ? selectedMode : "";
-    const subjectLabel = getSubjectLabel(subject);
-    const modeLabel = safeMode ? getModeLabel(safeMode) : "请选择模式";
-    const taskConfig = getTaskConfig(subject, safeMode);
-
+  syncMistakeFilter(activeMistakeFilter, extraData = {}) {
     this.setData({
-      currentSubject: subject,
-      currentSubjectLabel: subjectLabel,
-      selectedMode: safeMode,
-      selectedModeLabel: modeLabel,
-      taskSummaryText: `${subjectLabel} · ${modeLabel}`,
-      pastePlaceholder: taskConfig
-        ? taskConfig.placeholder
-        : `请先选择${subjectLabel}任务模式，再粘贴需要听写的内容。`,
-      splitRuleText: getSplitRuleText(subject, safeMode),
-      subjectOptions: buildSubjectOptions(subject),
-      modeOptions: buildModeOptions(subject, safeMode),
+      activeMistakeFilter,
+      mistakeFilters: buildMistakeFilters(activeMistakeFilter),
+      displayMistakes: getDisplayedMistakes(activeMistakeFilter),
       ...extraData,
     });
   },
@@ -389,38 +395,6 @@ Page({
     this.setData({ activeView: "review" });
   },
 
-  setSubject(event) {
-    const { subject } = event.currentTarget.dataset;
-    const keepMode = isModeSupported(subject, this.data.selectedMode) ? this.data.selectedMode : "";
-    const taskConfig = getTaskConfig(subject, keepMode);
-    const nextInput = keepMode
-      ? this.data.pasteInput || taskConfig.sampleInput
-      : "";
-
-    this.syncSelectionState(subject, keepMode, {
-      pasteInput: nextInput,
-    });
-    this.showToastMessage(
-      keepMode ? `已切换为 ${getSubjectLabel(subject)}` : `已切换为 ${getSubjectLabel(subject)}，请继续选择模式`
-    );
-  },
-
-  selectMode(event) {
-    const { mode } = event.currentTarget.dataset;
-
-    if (!isModeSupported(this.data.currentSubject, mode)) {
-      this.showToastMessage("当前学科暂不支持这个模式");
-      return;
-    }
-
-    const taskConfig = getTaskConfig(this.data.currentSubject, mode);
-
-    this.syncSelectionState(this.data.currentSubject, mode, {
-      pasteInput: this.data.pasteInput || taskConfig.sampleInput,
-    });
-    this.showToastMessage(`已选择 ${getModeLabel(mode)} 模式`);
-  },
-
   handleToolTap(event) {
     const { action } = event.currentTarget.dataset;
 
@@ -438,11 +412,9 @@ Page({
   },
 
   openPasteModal() {
-    const taskConfig = getTaskConfig(this.data.currentSubject, this.data.selectedMode);
-
-    this.syncSelectionState(this.data.currentSubject, this.data.selectedMode, {
+    this.setData({
       showPasteModal: true,
-      pasteInput: this.data.pasteInput || (taskConfig ? taskConfig.sampleInput : ""),
+      pasteInput: this.data.pasteInput || DEFAULT_PASTE_INPUT,
     });
   },
 
@@ -455,38 +427,31 @@ Page({
   },
 
   startDictation() {
-    if (!this.data.selectedMode) {
-      this.showToastMessage("开始前请先明确选择任务模式");
-      return;
-    }
+    const playerItems = splitDictationInput(this.data.pasteInput);
 
-    const words = splitInputByMode(this.data.pasteInput, this.data.selectedMode);
-
-    if (!words.length) {
+    if (!playerItems.length) {
       this.showToastMessage("请先输入至少一条可拆分的听写内容");
       return;
     }
-
-    const taskConfig = getTaskConfig(this.data.currentSubject, this.data.selectedMode);
+    const firstItem = playerItems[0];
 
     this.clearAutoPlayTimer();
 
     this.setData({
       activeView: "player",
       showPasteModal: false,
-      playerWords: words,
-      playerWord: words[0],
+      playerItems,
+      playerWord: firstItem.text,
       currentPlayerIndex: 0,
       currentPlayerDisplay: 1,
-      playerTotalCount: words.length,
-      playerCardLabel: taskConfig.playerLabel,
-      playerTaskMeta: `${this.data.currentSubjectLabel} · ${this.data.selectedModeLabel}`,
+      playerTotalCount: playerItems.length,
+      playerCardLabel: getPlayerCardLabel(firstItem.language),
       revealed: false,
       autoPlayEnabled: false,
       selectedIntervalIndex: 1,
     });
 
-    this.showToastMessage(`已创建 ${this.data.currentSubjectLabel}${this.data.selectedModeLabel}任务`);
+    this.showToastMessage(`已创建 ${playerItems.length} 条自动识别任务`);
   },
 
   exitPlayer() {
@@ -499,13 +464,15 @@ Page({
   },
 
   updatePlayerWord(index) {
-    const words = this.data.playerWords;
-    const safeIndex = Math.max(0, Math.min(index, words.length - 1));
+    const playerItems = this.data.playerItems;
+    const safeIndex = Math.max(0, Math.min(index, playerItems.length - 1));
+    const currentItem = playerItems[safeIndex];
 
     this.setData({
       currentPlayerIndex: safeIndex,
       currentPlayerDisplay: safeIndex + 1,
-      playerWord: words[safeIndex],
+      playerWord: currentItem.text,
+      playerCardLabel: getPlayerCardLabel(currentItem.language),
       revealed: false,
     });
   },
@@ -524,7 +491,7 @@ Page({
   },
 
   nextWord() {
-    if (this.data.currentPlayerIndex >= this.data.playerWords.length - 1) {
+    if (this.data.currentPlayerIndex >= this.data.playerItems.length - 1) {
       this.setData({ autoPlayEnabled: false });
       this.clearAutoPlayTimer();
       this.showToastMessage("已经是当前任务的最后一条了");
@@ -543,13 +510,15 @@ Page({
   },
 
   playCurrentWord() {
-    if (!this.data.playerWord) {
+    const currentItem = this.data.playerItems[this.data.currentPlayerIndex];
+
+    if (!currentItem) {
       this.showToastMessage("当前还没有可播放的内容");
       return;
     }
 
     this.clearAutoPlayTimer();
-    this.showToastMessage(`Mock 播报：${this.data.playerWord}`);
+    this.showToastMessage(`Mock ${currentItem.languageLabel}播报：${currentItem.text}`);
 
     if (this.data.autoPlayEnabled) {
       this.scheduleAutoPlay();
@@ -566,7 +535,7 @@ Page({
     const interval = INTERVAL_SECONDS[this.data.selectedIntervalIndex] * 1000;
 
     this.autoPlayTimer = setTimeout(() => {
-      if (this.data.currentPlayerIndex >= this.data.playerWords.length - 1) {
+      if (this.data.currentPlayerIndex >= this.data.playerItems.length - 1) {
         this.setData({ autoPlayEnabled: false });
         this.showToastMessage("Mock 自动播放已完成");
         return;
@@ -617,27 +586,16 @@ Page({
     const { action } = event.currentTarget.dataset;
 
     if (action === "generate") {
-      if (!this.data.selectedMode) {
-        this.setData({
-          showAiModal: false,
-          showPasteModal: true,
-        });
-        this.showToastMessage("请先明确选择学科和模式，再生成 mock 内容");
-        return;
-      }
-
-      const taskConfig = getTaskConfig(this.data.currentSubject, this.data.selectedMode);
-
-      this.syncSelectionState(this.data.currentSubject, this.data.selectedMode, {
+      this.setData({
         showAiModal: false,
         showPasteModal: true,
-        pasteInput: taskConfig.generatedInput,
+        pasteInput: GENERATED_PASTE_INPUT,
       });
-      this.showToastMessage(`已生成 ${this.data.currentSubjectLabel}${this.data.selectedModeLabel} mock 内容`);
+      this.showToastMessage("已生成自动识别的混合语言 mock 内容");
       return;
     }
 
-    const analysisPreset = getAnalysisPreset(this.data.currentSubject, this.data.selectedMode);
+    const analysisPreset = buildAnalysisPreset(splitDictationInput(this.data.pasteInput || DEFAULT_PASTE_INPUT));
 
     this.setData({
       showAiModal: false,
@@ -647,6 +605,11 @@ Page({
       analysisActionText: analysisPreset.actionText,
       analysisItems: analysisPreset.items,
     });
+  },
+
+  setMistakeFilter(event) {
+    const { filter } = event.currentTarget.dataset;
+    this.syncMistakeFilter(filter);
   },
 
   closeAnalysisSheet() {
