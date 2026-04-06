@@ -5,6 +5,13 @@ const MOCK_STANDARD_ITEMS = [
   { id: "mock-en-2", text: "beautiful", language: "en" },
 ];
 
+const MOCK_PHOTO_DICTATION_ITEMS = [
+  { id: "photo-ocr-1", text: "under", language: "en" },
+  { id: "photo-ocr-2", text: "excited", language: "en" },
+  { id: "photo-ocr-3", text: "clap my hands", language: "en" },
+  { id: "photo-ocr-4", text: "find my doll", language: "en" },
+];
+
 function detectLanguage(text) {
   const hasZh = /[\u4e00-\u9fff]/.test(text);
   const hasEn = /[A-Za-z]/.test(text);
@@ -124,7 +131,11 @@ async function runMockOcr({ imagePath, expectedItems }) {
 async function runMockPhotoDictationOcr({ imagePath }) {
   await wait(520);
 
-  const normalizedItems = getFallbackTaskItems();
+  const normalizedItems = MOCK_PHOTO_DICTATION_ITEMS.map((item, index) => ({
+    id: item.id || `photo-dictation-${index}`,
+    text: item.text,
+    language: item.language || detectLanguage(item.text),
+  }));
 
   return {
     imagePath,

@@ -43,6 +43,11 @@ const ICONS = {
 };
 
 const INTERVAL_SECONDS = [3, 5, 8, 10];
+const SPEECH_RATE_OPTIONS = [
+  { label: "慢速", value: 0.85 },
+  { label: "标准", value: 1 },
+  { label: "稍快", value: 1.15 },
+];
 const MAX_TTS_CONTENT_LENGTH = 48;
 const PHOTO_CROP_STAGE_WIDTH_RPX = 606;
 const PHOTO_CROP_STAGE_HEIGHT_RPX = 760;
@@ -333,6 +338,25 @@ function splitDictationInput(input) {
   });
 }
 
+function buildDictationEditorText(items = []) {
+  return items
+    .map((item) => item.text)
+    .filter(Boolean)
+    .join("\n");
+}
+
+function countDictationItems(input) {
+  return splitDictationInput(input).length;
+}
+
+function getSpeechRateValue(selectedSpeechRateIndex) {
+  return SPEECH_RATE_OPTIONS[selectedSpeechRateIndex]?.value || 1;
+}
+
+function getSpeechRateLabel(selectedSpeechRateIndex) {
+  return SPEECH_RATE_OPTIONS[selectedSpeechRateIndex]?.label || "标准";
+}
+
 function buildAnalysisPreset(playerItems) {
   const counts = playerItems.reduce(
     (result, item) => {
@@ -573,6 +597,10 @@ Page({
     photoCropRectTopPx: 0,
     photoCropRectWidthPx: 0,
     photoCropRectHeightPx: 0,
+    photoSetupImagePath: "",
+    photoSetupInput: "",
+    photoSetupDetectedCount: 0,
+    photoSetupAutoPlay: false,
     pasteInput: "",
     pastePlaceholder: PASTE_PLACEHOLDER,
     playerItems: [],
@@ -584,6 +612,9 @@ Page({
     playerCardLabel: "当前听写内容",
     revealed: false,
     autoPlayEnabled: false,
+    speechRateOptions: SPEECH_RATE_OPTIONS,
+    speechRateLabels: SPEECH_RATE_OPTIONS.map((item) => item.label),
+    selectedSpeechRateIndex: 1,
     intervalOptions: ["3秒", "5秒", "8秒", "10秒"],
     selectedIntervalIndex: 1,
     reviewTarget: 8,
@@ -714,6 +745,55 @@ Page({
     });
   },
 
+  enterPlayerWithItems(playerItems, options = {}) {
+    if (!playerItems.length) {
+      this.showToastMessage("当前没有可开始默写的内容");
+      return false;
+    }
+
+    const firstItem = playerItems[0];
+    const autoPlayEnabled = Boolean(options.autoPlay);
+    const successMessage = options.successMessage || "";
+
+    this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
+
+    this.setData({
+      activeView: "player",
+      showPasteModal: false,
+      showPhotoConfirmSheet: false,
+      showPhotoCropSheet: false,
+      photoConfirmImagePath: "",
+      photoConfirmSourceType: "",
+      photoSetupImagePath: "",
+      photoSetupInput: "",
+      photoSetupDetectedCount: 0,
+      playerItems,
+      lastTaskItems: playerItems,
+      playerWord: firstItem.text,
+      currentPlayerIndex: 0,
+      currentPlayerDisplay: 1,
+      playerTotalCount: playerItems.length,
+      playerCardLabel: getPlayerCardLabel(firstItem.language),
+      revealed: false,
+      autoPlayEnabled,
+    });
+
+    if (successMessage) {
+      this.showToastMessage(successMessage);
+    }
+
+    if (autoPlayEnabled) {
+      setTimeout(() => {
+        if (this.data.activeView === "player" && this.data.autoPlayEnabled) {
+          this.playCurrentWord();
+        }
+      }, 80);
+    }
+
+    return true;
+  },
+
   switchTab(event) {
     const { view } = event.currentTarget.dataset;
     this.clearAutoPlayTimer();
@@ -829,6 +909,11 @@ Page({
       this.currentSpeechSegmentIndex = segmentIndex;
       this.currentSpeechLangCode = langCode;
       this.currentSpeechCacheKey = cacheKey;
+      try {
+        audioContext.playbackRate = getSpeechRateValue(this.data.selectedSpeechRateIndex);
+      } catch (error) {
+        console.warn("set playbackRate failed", error);
+      }
       audioContext.src = url;
       audioContext.play();
     } catch (error) {
@@ -1241,6 +1326,81 @@ Page({
     });
   },
 
+  openPhotoRecognitionSetup(imagePath, playerItems) {
+    const photoSetupInput = buildDictationEditorText(playerItems);
+
+    this.setData({
+      activeView: "photoSetup",
+      showPhotoConfirmSheet: false,
+      photoConfirmImagePath: "",
+      photoConfirmSourceType: "",
+      photoSetupImagePath: imagePath,
+      photoSetupInput,
+      photoSetupDetectedCount: playerItems.length,
+      photoSetupAutoPlay: false,
+    });
+  },
+
+  closePhotoRecognitionSetup() {
+    this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
+    this.setData({
+      activeView: "dictate",
+      photoSetupImagePath: "",
+      photoSetupInput: "",
+      photoSetupDetectedCount: 0,
+      photoSetupAutoPlay: false,
+    });
+  },
+
+  handlePhotoSetupInput(event) {
+    const photoSetupInput = event.detail.value;
+
+    this.setData({
+      photoSetupInput,
+      photoSetupDetectedCount: countDictationItems(photoSetupInput),
+    });
+  },
+
+  handleSpeechRateChange(event) {
+    const selectedSpeechRateIndex = Number(event.detail.value);
+
+    this.setData({ selectedSpeechRateIndex });
+    this.showToastMessage(`语速已设为${getSpeechRateLabel(selectedSpeechRateIndex)}`);
+  },
+
+  handlePhotoSetupAutoPlayChange(event) {
+    this.setData({
+      photoSetupAutoPlay: Boolean(event.detail.value),
+    });
+  },
+
+  async restartPhotoDictationFromSetup() {
+    this.setData({
+      activeView: "dictate",
+      photoSetupImagePath: "",
+      photoSetupInput: "",
+      photoSetupDetectedCount: 0,
+      photoSetupAutoPlay: false,
+    });
+
+    await this.startPhotoDictationFlow();
+  },
+
+  startPhotoDictationFromSetup() {
+    const playerItems = splitDictationInput(this.data.photoSetupInput || "");
+
+    if (!playerItems.length) {
+      this.showToastMessage("请先保留至少一条可默写内容");
+      return;
+    }
+
+    this.enterPlayerWithItems(playerItems, {
+      autoPlay: this.data.photoSetupAutoPlay,
+      successMessage: `已确认 ${playerItems.length} 条内容，开始默写`,
+    });
+  },
+
   async finishPhotoDictation() {
     const imagePath = this.data.photoConfirmImagePath;
 
@@ -1265,28 +1425,8 @@ Page({
         return;
       }
 
-      const firstItem = playerItems[0];
-
-      this.clearAutoPlayTimer();
-      this.stopSpeechPlayback();
-
-      this.setData({
-        activeView: "player",
-        showPhotoConfirmSheet: false,
-        photoConfirmImagePath: "",
-        photoConfirmSourceType: "",
-        playerItems,
-        lastTaskItems: playerItems,
-        playerWord: firstItem.text,
-        currentPlayerIndex: 0,
-        currentPlayerDisplay: 1,
-        playerTotalCount: playerItems.length,
-        playerCardLabel: getPlayerCardLabel(firstItem.language),
-        revealed: false,
-        autoPlayEnabled: false,
-      });
-
-      this.showToastMessage(`已根据照片生成 ${playerItems.length} 条听写内容`);
+      this.openPhotoRecognitionSetup(imagePath, playerItems);
+      this.showToastMessage(`OCR 已识别 ${playerItems.length} 条内容，请确认后开始默写`);
     } catch (error) {
       this.showToastMessage(error?.message || "拍照默写生成失败，请稍后再试");
     } finally {
@@ -1401,26 +1541,11 @@ Page({
       this.showToastMessage("请先输入至少一条可拆分的听写内容");
       return;
     }
-    const firstItem = playerItems[0];
 
-    this.clearAutoPlayTimer();
-    this.stopSpeechPlayback();
-
-    this.setData({
-      activeView: "player",
-      showPasteModal: false,
-      playerItems,
-      lastTaskItems: playerItems,
-      playerWord: firstItem.text,
-      currentPlayerIndex: 0,
-      currentPlayerDisplay: 1,
-      playerTotalCount: playerItems.length,
-      playerCardLabel: getPlayerCardLabel(firstItem.language),
-      revealed: false,
-      autoPlayEnabled: false,
+    this.enterPlayerWithItems(playerItems, {
+      autoPlay: false,
+      successMessage: `已创建 ${playerItems.length} 条自动识别任务`,
     });
-
-    this.showToastMessage(`已创建 ${playerItems.length} 条自动识别任务`);
   },
 
   exitPlayer() {

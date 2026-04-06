@@ -9,7 +9,7 @@
       </view>
     </view>
 
-    <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <scroll-view class="content-scroll {{activeView === 'photoSetup' ? 'content-scroll--photo-setup' : ''}}" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:if="{{activeView === 'dictate'}}">
         <view class="home-view fade-in-view">
           <view class="page-header page-header--home">
@@ -80,6 +80,80 @@
               <image class="review-banner__action-icon" src="{{icons.arrowRightWhite}}" mode="aspectFit" />
             </view>
             <image class="review-banner__decor" src="{{icons.apertureWhite}}" mode="aspectFit" />
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'photoSetup'}}">
+        <view class="sub-view sub-view--photo-setup fade-in-view">
+          <view class="player-topbar">
+            <view class="circle-button" bindtap="closePhotoRecognitionSetup">
+              <image class="circle-button__icon" src="{{icons.chevronLeftDark}}" mode="aspectFit" />
+            </view>
+            <view class="player-topbar__center">
+              <text class="player-topbar__title">确认默写内容</text>
+              <text class="player-topbar__meta">确认识别文字后直接开始默写</text>
+            </view>
+            <view class="circle-button circle-button--ghost" bindtap="restartPhotoDictationFromSetup">
+              <image class="circle-button__icon" src="{{icons.cameraDark}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="ocr-setup-card ocr-setup-card--result">
+            <view class="ocr-setup-card__header">
+              <view class="ocr-setup-card__title-row">
+                <text class="ocr-setup-card__title">识别结果</text>
+                <text class="ocr-setup-card__count">共 {{photoSetupDetectedCount}} 条</text>
+              </view>
+              <text class="ocr-setup-card__desc">默认可直接编辑。删除无关内容，改错字，每行一条更稳定。</text>
+            </view>
+            <textarea
+              class="ocr-setup-textarea"
+              value="{{photoSetupInput}}"
+              maxlength="-1"
+              placeholder="OCR 识别结果会显示在这里"
+              bindinput="handlePhotoSetupInput"
+            />
+          </view>
+
+          <view class="ocr-setup-card ocr-setup-card--params">
+            <view class="ocr-setup-card__header">
+              <view class="ocr-setup-card__title-row">
+                <text class="ocr-setup-card__title">默写参数</text>
+                <view class="ocr-header-switch">
+                  <text class="ocr-header-switch__label">自动播放</text>
+                  <switch checked="{{photoSetupAutoPlay}}" color="#2c5e43" bindchange="handlePhotoSetupAutoPlayChange" />
+                </view>
+              </view>
+              <text class="ocr-setup-card__desc">先设好语速和间隔，再进入默写。</text>
+            </view>
+
+            <view class="ocr-setting-inline-grid">
+              <picker mode="selector" range="{{speechRateLabels}}" value="{{selectedSpeechRateIndex}}" bindchange="handleSpeechRateChange">
+                <view class="ocr-setting-select">
+                  <view class="ocr-setting-select__main">
+                    <image class="ocr-setting-select__icon" src="{{icons.volumeDark}}" mode="aspectFit" />
+                    <view>
+                      <text class="ocr-setting-select__label">语速</text>
+                      <text class="ocr-setting-select__value">{{speechRateLabels[selectedSpeechRateIndex]}}</text>
+                    </view>
+                  </view>
+                </view>
+              </picker>
+
+              <picker mode="selector" range="{{intervalOptions}}" value="{{selectedIntervalIndex}}" bindchange="handleIntervalChange">
+                <view class="ocr-setting-select">
+                  <view class="ocr-setting-select__main">
+                    <image class="ocr-setting-select__icon" src="{{icons.timerDark}}" mode="aspectFit" />
+                    <view>
+                      <text class="ocr-setting-select__label">间隔</text>
+                      <text class="ocr-setting-select__value">{{intervalOptions[selectedIntervalIndex]}}</text>
+                    </view>
+                  </view>
+                </view>
+              </picker>
+            </view>
+
           </view>
         </view>
       </block>
@@ -366,7 +440,7 @@
       </cover-view>
     </view>
 
-    <view wx:if="{{activeView !== 'player' && activeView !== 'result' && activeView !== 'photoCapture'}}" class="bottom-nav">
+    <view wx:if="{{activeView !== 'player' && activeView !== 'result' && activeView !== 'photoCapture' && activeView !== 'photoSetup'}}" class="bottom-nav">
       <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="dictate">
         <image class="nav-item__icon" src="{{activeView === 'dictate' ? icons.homeDark : icons.homeMuted}}" mode="aspectFit" />
         <text class="nav-item__text {{activeView === 'dictate' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">主页</text>
@@ -382,6 +456,15 @@
       <view class="nav-item {{activeView === 'review' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="review">
         <image class="nav-item__icon" src="{{activeView === 'review' ? icons.calendarDark : icons.calendarMuted}}" mode="aspectFit" />
         <text class="nav-item__text {{activeView === 'review' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">复习</text>
+      </view>
+    </view>
+
+    <view wx:if="{{activeView === 'photoSetup'}}" class="page-fixed-footer">
+      <view class="page-fixed-footer__inner">
+        <view class="primary-button primary-button--footer" bindtap="startPhotoDictationFromSetup">
+          <image class="primary-button__icon" src="{{icons.playCircleWhite}}" mode="aspectFit" />
+          <text class="primary-button__text">开始默写</text>
+        </view>
       </view>
     </view>
 
