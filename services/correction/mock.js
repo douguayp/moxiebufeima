@@ -121,6 +121,21 @@ async function runMockOcr({ imagePath, expectedItems }) {
   };
 }
 
+async function runMockPhotoDictationOcr({ imagePath }) {
+  await wait(520);
+
+  const normalizedItems = getFallbackTaskItems();
+
+  return {
+    imagePath,
+    lines: normalizedItems.map((item) => ({
+      id: item.id,
+      text: item.text,
+      language: item.language,
+    })),
+  };
+}
+
 function splitRecognizedContent(ocrResult) {
   const lines = ocrResult?.lines || [];
 
@@ -224,5 +239,6 @@ module.exports = {
   compareWithExpected,
   getFallbackTaskItems,
   runMockOcr,
+  runMockPhotoDictationOcr,
   splitRecognizedContent,
 };

@@ -44,12 +44,17 @@ const ICONS = {
 
 const INTERVAL_SECONDS = [3, 5, 8, 10];
 const MAX_TTS_CONTENT_LENGTH = 48;
+const PHOTO_CROP_STAGE_WIDTH_RPX = 606;
+const PHOTO_CROP_STAGE_HEIGHT_RPX = 760;
+const PHOTO_CROP_MIN_SIZE_PX = 72;
+const PHOTO_CROP_FRAME_MS = 16;
 const {
   buildCorrectionHistoryRecord,
   buildWrongBookEntries,
   compareWithExpected,
   getFallbackTaskItems,
   runMockOcr,
+  runMockPhotoDictationOcr,
   splitRecognizedContent,
 } = require("../../services/correction/mock");
 const { synthesizeSpeechToFile } = require("../../services/tts/index");
@@ -447,16 +452,127 @@ function buildCorrectionSummaryData(taskItems = []) {
   };
 }
 
+function isCancelError(error) {
+  return Boolean(error?.errMsg && error.errMsg.includes("cancel"));
+}
+
+function chooseImageSourceType() {
+  return new Promise((resolve, reject) => {
+    wx.showActionSheet({
+      itemList: ["拍照", "从相册选择"],
+      success: (result) => {
+        resolve(result.tapIndex === 0 ? "camera" : "album");
+      },
+      fail: reject,
+    });
+  });
+}
+
+function chooseSingleImage(sourceType) {
+  return new Promise((resolve, reject) => {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ["compressed"],
+      sourceType: [sourceType],
+      success: (result) => {
+        const imagePath = result?.tempFilePaths?.[0];
+
+        if (!imagePath) {
+          reject(new Error("没有读取到图片，请重试"));
+          return;
+        }
+
+        resolve(imagePath);
+      },
+      fail: reject,
+    });
+  });
+}
+
+function getImageInfo(src) {
+  return new Promise((resolve, reject) => {
+    wx.getImageInfo({
+      src,
+      success: resolve,
+      fail: reject,
+    });
+  });
+}
+
+function buildPhotoCropMetrics(imageInfo, windowWidth, windowHeight) {
+  const pxPerRpx = windowWidth / 750;
+  const stageWidthPx = Math.round(windowWidth);
+  const reservedHeightPx = Math.round(220 * pxPerRpx);
+  const stageHeightPx = Math.max(
+    Math.round(PHOTO_CROP_STAGE_HEIGHT_RPX * pxPerRpx),
+    Math.round((windowHeight || stageWidthPx) - reservedHeightPx)
+  );
+  const imageWidth = imageInfo?.width || 1;
+  const imageHeight = imageInfo?.height || 1;
+  const imageRatio = imageWidth / imageHeight;
+  const stageRatio = stageWidthPx / stageHeightPx;
+  let renderWidthPx = stageWidthPx;
+  let renderHeightPx = stageHeightPx;
+  let renderOffsetXPx = 0;
+  let renderOffsetYPx = 0;
+
+  if (imageRatio > stageRatio) {
+    renderWidthPx = stageWidthPx;
+    renderHeightPx = renderWidthPx / imageRatio;
+    renderOffsetYPx = Math.round((stageHeightPx - renderHeightPx) / 2);
+  } else {
+    renderHeightPx = stageHeightPx;
+    renderWidthPx = renderHeightPx * imageRatio;
+    renderOffsetXPx = Math.round((stageWidthPx - renderWidthPx) / 2);
+  }
+
+  const insetX = Math.round(renderWidthPx * 0.1);
+  const insetY = Math.round(renderHeightPx * 0.1);
+
+  return {
+    photoCropImagePath: imageInfo.path,
+    photoCropImageWidth: imageWidth,
+    photoCropImageHeight: imageHeight,
+    photoCropStageWidthPx: stageWidthPx,
+    photoCropStageHeightPx: stageHeightPx,
+    photoCropRenderWidthPx: Math.round(renderWidthPx),
+    photoCropRenderHeightPx: Math.round(renderHeightPx),
+    photoCropRenderOffsetXPx: renderOffsetXPx,
+    photoCropRenderOffsetYPx: renderOffsetYPx,
+    photoCropRectLeftPx: renderOffsetXPx + insetX,
+    photoCropRectTopPx: renderOffsetYPx + insetY,
+    photoCropRectWidthPx: Math.round(renderWidthPx - insetX * 2),
+    photoCropRectHeightPx: Math.round(renderHeightPx - insetY * 2),
+  };
+}
+
 Page({
   data: {
     icons: ICONS,
     statusBarHeight: 20,
     activeView: "dictate",
     showPasteModal: false,
+    showPhotoConfirmSheet: false,
+    showPhotoCropSheet: false,
     showAiModal: false,
     showAnalysisSheet: false,
     showToast: false,
     toastMessage: "提示",
+    photoConfirmImagePath: "",
+    photoConfirmSourceType: "",
+    photoCropImagePath: "",
+    photoCropImageWidth: 0,
+    photoCropImageHeight: 0,
+    photoCropStageWidthPx: 0,
+    photoCropStageHeightPx: 0,
+    photoCropRenderWidthPx: 0,
+    photoCropRenderHeightPx: 0,
+    photoCropRenderOffsetXPx: 0,
+    photoCropRenderOffsetYPx: 0,
+    photoCropRectLeftPx: 0,
+    photoCropRectTopPx: 0,
+    photoCropRectWidthPx: 0,
+    photoCropRectHeightPx: 0,
     pasteInput: "",
     pastePlaceholder: PASTE_PLACEHOLDER,
     playerItems: [],
@@ -503,6 +619,16 @@ Page({
       statusBarHeight,
     });
 
+    if (wx.getWindowInfo) {
+      const windowInfo = wx.getWindowInfo();
+      this.viewportWidth = windowInfo.windowWidth;
+      this.viewportHeight = windowInfo.windowHeight;
+    } else {
+      const systemInfo = wx.getSystemInfoSync();
+      this.viewportWidth = systemInfo.windowWidth;
+      this.viewportHeight = systemInfo.windowHeight;
+    }
+
     this.speechCache = {};
     this.activeSpeechSession = 0;
     this.currentSpeechSegments = [];
@@ -510,6 +636,9 @@ Page({
     this.currentSpeechLangCode = "zh";
     this.currentSpeechCacheKey = "";
     this.currentSpeechWarningSession = -1;
+    this.photoCropGesture = null;
+    this.photoCropPendingRect = null;
+    this.photoCropFrameTimer = null;
   },
 
   onHide() {
@@ -526,6 +655,11 @@ Page({
     this.clearAutoPlayTimer();
 
     this.stopSpeechPlayback();
+
+    if (this.photoCropFrameTimer) {
+      clearTimeout(this.photoCropFrameTimer);
+      this.photoCropFrameTimer = null;
+    }
 
     if (this.audioContext) {
       this.audioContext.destroy();
@@ -564,6 +698,20 @@ Page({
     this.toastTimer = setTimeout(() => {
       this.setData({ showToast: false });
     }, 2200);
+  },
+
+  openPhotoConfirm(imagePath, sourceType = "") {
+    if (!imagePath) {
+      this.showToastMessage("没有读取到图片，请重试");
+      return;
+    }
+
+    this.setData({
+      activeView: "dictate",
+      showPhotoConfirmSheet: true,
+      photoConfirmImagePath: imagePath,
+      photoConfirmSourceType: sourceType,
+    });
   },
 
   switchTab(event) {
@@ -750,12 +898,400 @@ Page({
       return;
     }
 
-    if (action === "paste") {
-      this.openPasteModal();
+    if (action === "photo-dictation") {
+      this.startPhotoDictationFlow();
       return;
     }
 
     this.showToastMessage("阶段 2 先保留词句库入口 UI");
+  },
+
+  async startPhotoDictationFlow() {
+    let sourceType = "";
+
+    try {
+      sourceType = await chooseImageSourceType();
+    } catch (error) {
+      if (!isCancelError(error)) {
+        this.showToastMessage("未能打开照片来源选择");
+      }
+      return;
+    }
+
+    if (sourceType === "camera") {
+      this.setData({
+        activeView: "photoCapture",
+      });
+      return;
+    }
+
+    try {
+      const imagePath = await chooseSingleImage("album");
+      this.openPhotoConfirm(imagePath, "album");
+    } catch (error) {
+      if (!isCancelError(error)) {
+        this.showToastMessage(error?.message || "选图失败，请检查相册权限");
+      }
+    }
+  },
+
+  closePhotoCaptureView() {
+    this.setData({
+      activeView: "dictate",
+    });
+  },
+
+  takePhotoForDictation() {
+    const cameraContext = wx.createCameraContext();
+
+    cameraContext.takePhoto({
+      quality: "high",
+      success: (result) => {
+        const imagePath = result?.tempImagePath;
+
+        this.openPhotoConfirm(imagePath, "camera");
+      },
+      fail: (error) => {
+        if (isCancelError(error)) {
+          return;
+        }
+
+        this.showToastMessage("拍照失败，请重试");
+      },
+    });
+  },
+
+  handlePhotoCameraError() {
+    this.showToastMessage("相机打开失败，请检查相机权限");
+  },
+
+  closePhotoConfirmSheet() {
+    this.setData({
+      showPhotoConfirmSheet: false,
+      photoConfirmImagePath: "",
+      photoConfirmSourceType: "",
+    });
+  },
+
+  async retakePhotoConfirm() {
+    const sourceType = this.data.photoConfirmSourceType || "camera";
+
+    this.setData({
+      showPhotoCropSheet: false,
+      showPhotoConfirmSheet: false,
+      photoConfirmImagePath: "",
+    });
+
+    if (sourceType === "camera") {
+      this.setData({
+        activeView: "photoCapture",
+      });
+      return;
+    }
+
+    try {
+      const imagePath = await chooseSingleImage("album");
+      this.openPhotoConfirm(imagePath, "album");
+    } catch (error) {
+      if (!isCancelError(error)) {
+        this.showToastMessage(error?.message || "重新选图失败，请重试");
+      }
+    }
+  },
+
+  async applyPhotoConfirmCrop() {
+    const imagePath = this.data.photoConfirmImagePath;
+
+    if (!imagePath) {
+      this.showToastMessage("当前没有可裁剪的照片");
+      return;
+    }
+
+    try {
+      const imageInfo = await getImageInfo(imagePath);
+
+      this.setData({
+        showPhotoCropSheet: true,
+        ...buildPhotoCropMetrics(imageInfo, this.viewportWidth || 375, this.viewportHeight || 667),
+      });
+    } catch (error) {
+      this.showToastMessage("裁剪失败，请重试");
+    }
+  },
+
+  closePhotoCropSheet() {
+    this.photoCropGesture = null;
+    this.photoCropPendingRect = null;
+    if (this.photoCropFrameTimer) {
+      clearTimeout(this.photoCropFrameTimer);
+      this.photoCropFrameTimer = null;
+    }
+    this.setData({ showPhotoCropSheet: false });
+  },
+
+  commitPhotoCropRect(nextRect) {
+    this.setData({
+      photoCropRectLeftPx: Math.round(nextRect.left),
+      photoCropRectTopPx: Math.round(nextRect.top),
+      photoCropRectWidthPx: Math.round(nextRect.width),
+      photoCropRectHeightPx: Math.round(nextRect.height),
+    });
+  },
+
+  queuePhotoCropRect(nextRect) {
+    this.photoCropPendingRect = nextRect;
+
+    if (this.photoCropFrameTimer) {
+      return;
+    }
+
+    this.photoCropFrameTimer = setTimeout(() => {
+      this.photoCropFrameTimer = null;
+
+      if (!this.photoCropPendingRect) {
+        return;
+      }
+
+      const pendingRect = this.photoCropPendingRect;
+      this.photoCropPendingRect = null;
+      this.commitPhotoCropRect(pendingRect);
+    }, PHOTO_CROP_FRAME_MS);
+  },
+
+  startPhotoCropGesture(event) {
+    const { handle } = event.currentTarget.dataset;
+    const touch = event.touches?.[0];
+
+    if (!handle || !touch) {
+      return;
+    }
+
+    this.photoCropGesture = {
+      handle,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startRect: {
+        left: this.data.photoCropRectLeftPx,
+        top: this.data.photoCropRectTopPx,
+        width: this.data.photoCropRectWidthPx,
+        height: this.data.photoCropRectHeightPx,
+      },
+    };
+  },
+
+  movePhotoCropGesture(event) {
+    if (!this.photoCropGesture) {
+      return;
+    }
+
+    const touch = event.touches?.[0];
+
+    if (!touch) {
+      return;
+    }
+
+    const dx = touch.clientX - this.photoCropGesture.startX;
+    const dy = touch.clientY - this.photoCropGesture.startY;
+    const startRect = this.photoCropGesture.startRect;
+    const bounds = {
+      left: this.data.photoCropRenderOffsetXPx,
+      top: this.data.photoCropRenderOffsetYPx,
+      right: this.data.photoCropRenderOffsetXPx + this.data.photoCropRenderWidthPx,
+      bottom: this.data.photoCropRenderOffsetYPx + this.data.photoCropRenderHeightPx,
+    };
+
+    let left = startRect.left;
+    let top = startRect.top;
+    let width = startRect.width;
+    let height = startRect.height;
+
+    switch (this.photoCropGesture.handle) {
+      case "move":
+        left = Math.min(Math.max(startRect.left + dx, bounds.left), bounds.right - startRect.width);
+        top = Math.min(Math.max(startRect.top + dy, bounds.top), bounds.bottom - startRect.height);
+        break;
+      case "tm":
+        top = Math.min(Math.max(startRect.top + dy, bounds.top), startRect.top + startRect.height - PHOTO_CROP_MIN_SIZE_PX);
+        height = startRect.height + (startRect.top - top);
+        break;
+      case "tl":
+        left = Math.min(Math.max(startRect.left + dx, bounds.left), startRect.left + startRect.width - PHOTO_CROP_MIN_SIZE_PX);
+        top = Math.min(Math.max(startRect.top + dy, bounds.top), startRect.top + startRect.height - PHOTO_CROP_MIN_SIZE_PX);
+        width = startRect.width + (startRect.left - left);
+        height = startRect.height + (startRect.top - top);
+        break;
+      case "tr":
+        top = Math.min(Math.max(startRect.top + dy, bounds.top), startRect.top + startRect.height - PHOTO_CROP_MIN_SIZE_PX);
+        width = Math.min(Math.max(startRect.width + dx, PHOTO_CROP_MIN_SIZE_PX), bounds.right - startRect.left);
+        height = startRect.height + (startRect.top - top);
+        break;
+      case "rm":
+        width = Math.min(Math.max(startRect.width + dx, PHOTO_CROP_MIN_SIZE_PX), bounds.right - startRect.left);
+        break;
+      case "bl":
+        left = Math.min(Math.max(startRect.left + dx, bounds.left), startRect.left + startRect.width - PHOTO_CROP_MIN_SIZE_PX);
+        width = startRect.width + (startRect.left - left);
+        height = Math.min(Math.max(startRect.height + dy, PHOTO_CROP_MIN_SIZE_PX), bounds.bottom - startRect.top);
+        break;
+      case "bm":
+        height = Math.min(Math.max(startRect.height + dy, PHOTO_CROP_MIN_SIZE_PX), bounds.bottom - startRect.top);
+        break;
+      case "br":
+        width = Math.min(Math.max(startRect.width + dx, PHOTO_CROP_MIN_SIZE_PX), bounds.right - startRect.left);
+        height = Math.min(Math.max(startRect.height + dy, PHOTO_CROP_MIN_SIZE_PX), bounds.bottom - startRect.top);
+        break;
+      case "lm":
+        left = Math.min(Math.max(startRect.left + dx, bounds.left), startRect.left + startRect.width - PHOTO_CROP_MIN_SIZE_PX);
+        width = startRect.width + (startRect.left - left);
+        break;
+      default:
+        break;
+    }
+
+    this.queuePhotoCropRect({
+      left,
+      top,
+      width,
+      height,
+    });
+  },
+
+  endPhotoCropGesture() {
+    this.photoCropGesture = null;
+
+    if (this.photoCropPendingRect) {
+      const pendingRect = this.photoCropPendingRect;
+      this.photoCropPendingRect = null;
+
+      if (this.photoCropFrameTimer) {
+        clearTimeout(this.photoCropFrameTimer);
+        this.photoCropFrameTimer = null;
+      }
+
+      this.commitPhotoCropRect(pendingRect);
+    }
+  },
+
+  async confirmPhotoCrop() {
+    const {
+      photoCropImagePath,
+      photoCropImageWidth,
+      photoCropImageHeight,
+      photoCropRenderWidthPx,
+      photoCropRenderHeightPx,
+      photoCropRenderOffsetXPx,
+      photoCropRenderOffsetYPx,
+      photoCropRectLeftPx,
+      photoCropRectTopPx,
+      photoCropRectWidthPx,
+      photoCropRectHeightPx,
+    } = this.data;
+
+    if (!photoCropImagePath) {
+      this.showToastMessage("当前没有可裁剪的照片");
+      return;
+    }
+
+    const sourceX = ((photoCropRectLeftPx - photoCropRenderOffsetXPx) / photoCropRenderWidthPx) * photoCropImageWidth;
+    const sourceY = ((photoCropRectTopPx - photoCropRenderOffsetYPx) / photoCropRenderHeightPx) * photoCropImageHeight;
+    const sourceWidth = (photoCropRectWidthPx / photoCropRenderWidthPx) * photoCropImageWidth;
+    const sourceHeight = (photoCropRectHeightPx / photoCropRenderHeightPx) * photoCropImageHeight;
+    const outputWidth = 1200;
+    const outputHeight = Math.max(120, Math.round((photoCropRectHeightPx / photoCropRectWidthPx) * outputWidth));
+    const ctx = wx.createCanvasContext("photoCropCanvas", this);
+
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    ctx.drawImage(
+      photoCropImagePath,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      outputWidth,
+      outputHeight
+    );
+
+    ctx.draw(false, () => {
+      wx.canvasToTempFilePath(
+        {
+          canvasId: "photoCropCanvas",
+          fileType: "jpg",
+          quality: 1,
+          x: 0,
+          y: 0,
+          width: outputWidth,
+          height: outputHeight,
+          destWidth: outputWidth,
+          destHeight: outputHeight,
+          success: (result) => {
+            this.setData({
+              photoConfirmImagePath: result.tempFilePath,
+              showPhotoCropSheet: false,
+            });
+            this.showToastMessage("已完成自由裁剪");
+          },
+          fail: () => {
+            this.showToastMessage("裁剪生成失败，请重试");
+          },
+        },
+        this
+      );
+    });
+  },
+
+  async finishPhotoDictation() {
+    const imagePath = this.data.photoConfirmImagePath;
+
+    if (!imagePath) {
+      this.showToastMessage("当前没有可用的照片");
+      return;
+    }
+
+    wx.showLoading({
+      title: "识别中",
+      mask: true,
+    });
+
+    try {
+      const ocrResult = await runMockPhotoDictationOcr({
+        imagePath,
+      });
+      const playerItems = splitRecognizedContent(ocrResult).filter((item) => item.text);
+
+      if (!playerItems.length) {
+        this.showToastMessage("没有识别到可听写内容，请换一张更清晰的图片");
+        return;
+      }
+
+      const firstItem = playerItems[0];
+
+      this.clearAutoPlayTimer();
+      this.stopSpeechPlayback();
+
+      this.setData({
+        activeView: "player",
+        showPhotoConfirmSheet: false,
+        photoConfirmImagePath: "",
+        photoConfirmSourceType: "",
+        playerItems,
+        lastTaskItems: playerItems,
+        playerWord: firstItem.text,
+        currentPlayerIndex: 0,
+        currentPlayerDisplay: 1,
+        playerTotalCount: playerItems.length,
+        playerCardLabel: getPlayerCardLabel(firstItem.language),
+        revealed: false,
+        autoPlayEnabled: false,
+      });
+
+      this.showToastMessage(`已根据照片生成 ${playerItems.length} 条听写内容`);
+    } catch (error) {
+      this.showToastMessage(error?.message || "拍照默写生成失败，请稍后再试");
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   openPasteModal() {

@@ -27,21 +27,21 @@
           </view>
 
           <view class="tool-grid">
+            <view class="tool-card tool-card--highlight" bindtap="handleToolTap" data-action="photo-dictation">
+              <view class="tool-icon tool-icon--green">
+                <image class="tool-icon__img" src="{{icons.cameraDark}}" mode="aspectFit" />
+                <view class="tool-dot"></view>
+              </view>
+              <text class="tool-card__title">拍照默写</text>
+              <text class="tool-card__subtitle">拍照 / 选图</text>
+            </view>
+
             <view class="tool-card" bindtap="handleToolTap" data-action="camera">
               <view class="tool-icon tool-icon--yellow">
                 <image class="tool-icon__img" src="{{icons.cameraDark}}" mode="aspectFit" />
               </view>
               <text class="tool-card__title">拍教材</text>
               <text class="tool-card__subtitle">AI帮你读</text>
-            </view>
-
-            <view class="tool-card tool-card--highlight" bindtap="handleToolTap" data-action="paste">
-              <view class="tool-icon tool-icon--green">
-                <image class="tool-icon__img" src="{{icons.clipboardDark}}" mode="aspectFit" />
-                <view class="tool-dot"></view>
-              </view>
-              <text class="tool-card__title">粘文本</text>
-              <text class="tool-card__subtitle">点我体验</text>
             </view>
 
             <view class="tool-card" bindtap="handleToolTap" data-action="library">
@@ -348,7 +348,25 @@
       </block>
     </scroll-view>
 
-    <view wx:if="{{activeView !== 'player' && activeView !== 'result'}}" class="bottom-nav">
+    <view wx:if="{{activeView === 'photoCapture'}}" class="photo-capture-overlay">
+      <camera class="photo-capture-camera" device-position="back" flash="auto" binderror="handlePhotoCameraError"></camera>
+      <cover-view class="photo-capture-mask">
+        <cover-view class="photo-capture-topbar">
+          <cover-view class="photo-capture-close" bindtap="closePhotoCaptureView">关闭</cover-view>
+          <cover-view class="photo-capture-title">拍照默写</cover-view>
+          <cover-view class="photo-capture-placeholder"></cover-view>
+        </cover-view>
+
+        <cover-view class="photo-capture-bottom">
+          <cover-view class="photo-capture-tip">拍摄要默写的区域</cover-view>
+          <cover-view class="photo-capture-shutter" bindtap="takePhotoForDictation">
+            <cover-view class="photo-capture-shutter__inner"></cover-view>
+          </cover-view>
+        </cover-view>
+      </cover-view>
+    </view>
+
+    <view wx:if="{{activeView !== 'player' && activeView !== 'result' && activeView !== 'photoCapture'}}" class="bottom-nav">
       <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="dictate">
         <image class="nav-item__icon" src="{{activeView === 'dictate' ? icons.homeDark : icons.homeMuted}}" mode="aspectFit" />
         <text class="nav-item__text {{activeView === 'dictate' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">主页</text>
@@ -405,6 +423,106 @@
           <text class="primary-button__text">开始智能听写</text>
         </view>
       </view>
+    </view>
+
+    <view wx:if="{{showPhotoConfirmSheet}}" class="overlay">
+      <view class="sheet sheet--photo-confirm" catchtap="noop">
+        <view class="sheet-header">
+          <text class="sheet-title">拍照默写</text>
+          <view class="sheet-close" bindtap="closePhotoConfirmSheet">
+            <image class="sheet-close__icon" src="{{icons.xMuted}}" mode="aspectFit" />
+          </view>
+        </view>
+        <text class="sheet-note">确认当前照片后继续。需要调整范围时，点击裁剪进入自由裁剪层。</text>
+
+        <view class="photo-confirm-preview">
+          <image class="photo-confirm-preview__image" src="{{photoConfirmImagePath}}" mode="aspectFit" />
+        </view>
+
+        <view class="photo-confirm-actions">
+          <view class="photo-confirm-action photo-confirm-action--ghost" bindtap="retakePhotoConfirm">
+            <text class="photo-confirm-action__text">重拍</text>
+          </view>
+          <view class="photo-confirm-action photo-confirm-action--soft" bindtap="applyPhotoConfirmCrop">
+            <text class="photo-confirm-action__text">裁剪</text>
+          </view>
+          <view class="photo-confirm-action photo-confirm-action--primary" bindtap="finishPhotoDictation">
+            <text class="photo-confirm-action__text photo-confirm-action__text--white">完成</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{showPhotoCropSheet}}" class="photo-crop-fullscreen">
+      <view class="photo-crop-fullscreen__header">
+        <view class="photo-crop-fullscreen__action" bindtap="closePhotoCropSheet">返回</view>
+        <text class="photo-crop-fullscreen__title">自由裁剪</text>
+        <view class="photo-crop-fullscreen__action photo-crop-fullscreen__action--ghost" bindtap="retakePhotoConfirm">重拍</view>
+      </view>
+      <view class="photo-crop-fullscreen__body">
+        <view
+          class="photo-crop-stage"
+          style="width: {{photoCropStageWidthPx}}px; height: {{photoCropStageHeightPx}}px;"
+          catchtouchmove="movePhotoCropGesture"
+          catchtouchend="endPhotoCropGesture"
+          catchtouchcancel="endPhotoCropGesture"
+        >
+          <image
+            class="photo-crop-stage__image"
+            src="{{photoCropImagePath}}"
+            mode="aspectFit"
+            style="width: {{photoCropRenderWidthPx}}px; height: {{photoCropRenderHeightPx}}px; left: {{photoCropRenderOffsetXPx}}px; top: {{photoCropRenderOffsetYPx}}px;"
+          />
+          <view class="photo-crop-mask photo-crop-mask--top" style="left: {{photoCropRenderOffsetXPx}}px; top: {{photoCropRenderOffsetYPx}}px; width: {{photoCropRenderWidthPx}}px; height: {{photoCropRectTopPx - photoCropRenderOffsetYPx}}px;"></view>
+          <view class="photo-crop-mask photo-crop-mask--left" style="left: {{photoCropRenderOffsetXPx}}px; top: {{photoCropRectTopPx}}px; width: {{photoCropRectLeftPx - photoCropRenderOffsetXPx}}px; height: {{photoCropRectHeightPx}}px;"></view>
+          <view class="photo-crop-mask photo-crop-mask--right" style="left: {{photoCropRectLeftPx + photoCropRectWidthPx}}px; top: {{photoCropRectTopPx}}px; width: {{photoCropRenderOffsetXPx + photoCropRenderWidthPx - (photoCropRectLeftPx + photoCropRectWidthPx)}}px; height: {{photoCropRectHeightPx}}px;"></view>
+          <view class="photo-crop-mask photo-crop-mask--bottom" style="left: {{photoCropRenderOffsetXPx}}px; top: {{photoCropRectTopPx + photoCropRectHeightPx}}px; width: {{photoCropRenderWidthPx}}px; height: {{photoCropRenderOffsetYPx + photoCropRenderHeightPx - (photoCropRectTopPx + photoCropRectHeightPx)}}px;"></view>
+
+          <view
+            class="photo-crop-rect"
+            style="left: {{photoCropRectLeftPx}}px; top: {{photoCropRectTopPx}}px; width: {{photoCropRectWidthPx}}px; height: {{photoCropRectHeightPx}}px;"
+            bindtouchstart="startPhotoCropGesture"
+            data-handle="move"
+          >
+            <view class="photo-crop-grid"></view>
+            <view class="photo-crop-handle photo-crop-handle--tm" catchtouchstart="startPhotoCropGesture" data-handle="tm">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--tl" catchtouchstart="startPhotoCropGesture" data-handle="tl">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--tr" catchtouchstart="startPhotoCropGesture" data-handle="tr">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--rm" catchtouchstart="startPhotoCropGesture" data-handle="rm">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--bl" catchtouchstart="startPhotoCropGesture" data-handle="bl">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--bm" catchtouchstart="startPhotoCropGesture" data-handle="bm">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--br" catchtouchstart="startPhotoCropGesture" data-handle="br">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+            <view class="photo-crop-handle photo-crop-handle--lm" catchtouchstart="startPhotoCropGesture" data-handle="lm">
+              <view class="photo-crop-handle__dot"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="photo-crop-fullscreen__footer">
+        <view class="photo-confirm-action photo-confirm-action--soft" bindtap="closePhotoCropSheet">
+          <text class="photo-confirm-action__text">取消</text>
+        </view>
+        <view class="photo-confirm-action photo-confirm-action--primary" bindtap="confirmPhotoCrop">
+          <text class="photo-confirm-action__text photo-confirm-action__text--white">完成裁剪</text>
+        </view>
+      </view>
+
+      <canvas canvas-id="photoCropCanvas" class="photo-crop-canvas" style="width: 1200px; height: 1600px;" />
     </view>
 
     <view wx:if="{{showAiModal}}" class="overlay" bindtap="closeAiModal">
