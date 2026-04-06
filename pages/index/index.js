@@ -44,8 +44,15 @@ const ICONS = {
 
 const INTERVAL_SECONDS = [3, 5, 8, 10];
 const MAX_TTS_CONTENT_LENGTH = 48;
-const WECHAT_SI_PLUGIN_NAME = "WechatSI";
-const WECHAT_SI_PLUGIN_MISSING_MESSAGE = "朗读插件不可用，请先在小程序后台添加“微信同声传译”插件";
+const {
+  buildCorrectionHistoryRecord,
+  buildWrongBookEntries,
+  compareWithExpected,
+  getFallbackTaskItems,
+  runMockOcr,
+  splitRecognizedContent,
+} = require("../../services/correction/mock");
+const { synthesizeSpeechToFile } = require("../../services/tts/index");
 
 const PASTE_PLACEHOLDER = "例如：\n苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
 const GENERATED_PASTE_INPUT = "苹果 Apple 蜿蜒 Environment\nbeautiful awkward\nWe practice after dinner.";
@@ -98,8 +105,6 @@ const REVIEW_TIMELINE = [
   },
 ];
 
-let wechatSiPlugin = null;
-
 function detectItemLanguage(text) {
   const hasZh = /[\u4e00-\u9fff]/.test(text);
   const hasEn = /[A-Za-z]/.test(text);
@@ -135,10 +140,10 @@ function getPlayerCardLabel(language) {
 
 function getSpeechLangCode(language) {
   if (language === "en") {
-    return "en_US";
+    return "en";
   }
 
-  return "zh_CN";
+  return "zh";
 }
 
 function forceSplitSpeechText(text, maxLength = MAX_TTS_CONTENT_LENGTH) {
@@ -223,22 +228,32 @@ function splitSpeechContent(text, language) {
   return forceSplitSpeechText(normalized, MAX_TTS_CONTENT_LENGTH);
 }
 
-function getWechatSiPlugin() {
-  if (wechatSiPlugin) {
-    return wechatSiPlugin;
+function getSpeechErrorMessage(error) {
+  if (!error?.code) {
+    return error?.message || "朗读失败，请稍后再试";
   }
 
-  try {
-    if (typeof requirePlugin !== "function") {
-      return null;
-    }
-
-    wechatSiPlugin = requirePlugin(WECHAT_SI_PLUGIN_NAME);
-    return wechatSiPlugin;
-  } catch (error) {
-    console.warn("WechatSI plugin unavailable", error);
-    return null;
+  if (error.code === "CLOUD_UNAVAILABLE") {
+    return "当前项目还没有启用云开发，请先开通并初始化云环境";
   }
+
+  if (error.code === "TTS_CONFIG_MISSING") {
+    return "请先配置腾讯云 TTS 密钥，然后重新部署 tts 云函数";
+  }
+
+  if (error.code === "FUNCTION_NOT_FOUND") {
+    return "找不到 tts 云函数，请先上传并部署云函数";
+  }
+
+  if (error.code === "AUDIO_EMPTY") {
+    return "TTS 没有返回音频数据，请稍后重试";
+  }
+
+  if (error.code === "FILE_WRITE_FAILED") {
+    return "本地音频写入失败，请检查存储权限";
+  }
+
+  return error.message || "朗读失败，请稍后再试";
 }
 
 function shouldSplitInline(line) {
@@ -403,6 +418,35 @@ function getDisplayedMistakes(activeFilter) {
   return MISTAKE_ITEMS.filter((item) => item.subject === activeFilter);
 }
 
+function getCorrectionBaseItems(taskItems = []) {
+  if (taskItems.length) {
+    return taskItems.map((item, index) => ({
+      id: item.id || `task-${index}`,
+      text: item.text,
+      language: item.language,
+    }));
+  }
+
+  return getFallbackTaskItems();
+}
+
+function getCorrectionSourceTitle(hasTaskItems) {
+  return hasTaskItems ? "标准答案来源：最近一次听写任务" : "标准答案来源：内置 mock 任务";
+}
+
+function getCorrectionSourcePreview(taskItems = []) {
+  const baseItems = getCorrectionBaseItems(taskItems);
+  return baseItems.slice(0, 4).map((item) => item.text).join(" / ");
+}
+
+function buildCorrectionSummaryData(taskItems = []) {
+  return {
+    correctionExpectedItems: getCorrectionBaseItems(taskItems),
+    correctionSourceTitle: getCorrectionSourceTitle(taskItems.length > 0),
+    correctionSourcePreview: getCorrectionSourcePreview(taskItems),
+  };
+}
+
 Page({
   data: {
     icons: ICONS,
@@ -416,6 +460,7 @@ Page({
     pasteInput: "",
     pastePlaceholder: PASTE_PLACEHOLDER,
     playerItems: [],
+    lastTaskItems: [],
     playerWord: "",
     currentPlayerIndex: 0,
     currentPlayerDisplay: 0,
@@ -431,6 +476,14 @@ Page({
     analysisActionText: "",
     analysisItems: [],
     recentCorrection: RECENT_CORRECTION,
+    correctionImagePath: "",
+    correctionExpectedItems: getFallbackTaskItems(),
+    correctionSourceTitle: getCorrectionSourceTitle(false),
+    correctionSourcePreview: getCorrectionSourcePreview([]),
+    correctionRecognizedItems: [],
+    correctionResult: null,
+    correctionBusy: false,
+    correctionWrongItemsAdded: false,
     activeMistakeFilter: "all",
     mistakeFilters: buildMistakeFilters("all"),
     displayMistakes: getDisplayedMistakes("all"),
@@ -454,8 +507,9 @@ Page({
     this.activeSpeechSession = 0;
     this.currentSpeechSegments = [];
     this.currentSpeechSegmentIndex = -1;
-    this.currentSpeechLangCode = "zh_CN";
+    this.currentSpeechLangCode = "zh";
     this.currentSpeechCacheKey = "";
+    this.currentSpeechWarningSession = -1;
   },
 
   onHide() {
@@ -516,27 +570,23 @@ Page({
     const { view } = event.currentTarget.dataset;
     this.clearAutoPlayTimer();
     this.stopSpeechPlayback();
-    this.setData({
+    const nextState = {
       activeView: view,
       autoPlayEnabled: false,
       revealed: false,
-    });
+    };
+
+    if (view === "grade") {
+      Object.assign(nextState, buildCorrectionSummaryData(this.data.lastTaskItems));
+    }
+
+    this.setData(nextState);
   },
 
   goToReview() {
     this.clearAutoPlayTimer();
     this.stopSpeechPlayback();
     this.setData({ activeView: "review" });
-  },
-
-  ensureSpeechPlugin() {
-    const plugin = getWechatSiPlugin();
-
-    if (plugin && typeof plugin.textToSpeech === "function") {
-      return plugin;
-    }
-
-    return null;
   },
 
   ensureAudioContext() {
@@ -564,8 +614,9 @@ Page({
     this.activeSpeechSession = (this.activeSpeechSession || 0) + 1;
     this.currentSpeechSegments = [];
     this.currentSpeechSegmentIndex = -1;
-    this.currentSpeechLangCode = "zh_CN";
+    this.currentSpeechLangCode = "zh";
     this.currentSpeechCacheKey = "";
+    this.currentSpeechWarningSession = -1;
 
     if (this.audioContext) {
       try {
@@ -576,56 +627,34 @@ Page({
     }
   },
 
-  resolveSpeechUrl(content, langCode) {
+  async resolveSpeechUrl(content, langCode) {
     const cacheKey = `${langCode}::${content}`;
     const cachedSpeech = this.speechCache?.[cacheKey];
 
     if (cachedSpeech && cachedSpeech.expiresAt > Date.now() + 60 * 1000) {
-      return Promise.resolve({
+      return {
         url: cachedSpeech.url,
         cacheKey,
-      });
+        warningMessage: cachedSpeech.warningMessage || "",
+      };
     }
 
-    const plugin = this.ensureSpeechPlugin();
-
-    if (!plugin) {
-      return Promise.reject(new Error("PLUGIN_UNAVAILABLE"));
-    }
-
-    return new Promise((resolve, reject) => {
-      plugin.textToSpeech({
-        lang: langCode,
-        tts: true,
-        content,
-        success: (result) => {
-          if (result && result.retcode === 0 && result.filename) {
-            const expiresAt =
-              typeof result.expired_time === "number"
-                ? result.expired_time * 1000
-                : Date.now() + 2 * 60 * 60 * 1000;
-
-            this.speechCache[cacheKey] = {
-              url: result.filename,
-              expiresAt,
-            };
-
-            resolve({
-              url: result.filename,
-              cacheKey,
-            });
-            return;
-          }
-
-          const error = new Error(result?.msg || "语音合成失败");
-          error.code = result?.retcode;
-          reject(error);
-        },
-        fail: (error) => {
-          reject(error || new Error("语音合成请求失败"));
-        },
-      });
+    const speechResult = await synthesizeSpeechToFile({
+      text: content,
+      language: langCode,
     });
+
+    this.speechCache[cacheKey] = {
+      url: speechResult.filePath,
+      expiresAt: speechResult.expiresAt,
+      warningMessage: speechResult.warningMessage || "",
+    };
+
+    return {
+      url: speechResult.filePath,
+      cacheKey,
+      warningMessage: speechResult.warningMessage || "",
+    };
   },
 
   async playSpeechSegment(segments, langCode, speechSession, segmentIndex = 0) {
@@ -636,10 +665,15 @@ Page({
     }
 
     try {
-      const { url, cacheKey } = await this.resolveSpeechUrl(segment, langCode);
+      const { url, cacheKey, warningMessage } = await this.resolveSpeechUrl(segment, langCode);
 
       if (speechSession !== this.activeSpeechSession) {
         return;
+      }
+
+      if (warningMessage && this.currentSpeechWarningSession !== speechSession) {
+        this.currentSpeechWarningSession = speechSession;
+        this.showToastMessage(warningMessage);
       }
 
       const audioContext = this.ensureAudioContext();
@@ -696,12 +730,7 @@ Page({
       this.setData({ autoPlayEnabled: false });
     }
 
-    if (error?.message === "PLUGIN_UNAVAILABLE") {
-      this.showToastMessage(WECHAT_SI_PLUGIN_MISSING_MESSAGE);
-      return;
-    }
-
-    this.showToastMessage(error?.msg || error?.errMsg || error?.message || "朗读失败，请检查网络后重试");
+    this.showToastMessage(getSpeechErrorMessage(error));
   },
 
   handleSpeechError(error) {
@@ -717,7 +746,7 @@ Page({
     const { action } = event.currentTarget.dataset;
 
     if (action === "camera") {
-      this.showToastMessage("阶段 2 仍仅保留拍教材入口 UI");
+      this.chooseCorrectionImage();
       return;
     }
 
@@ -744,6 +773,91 @@ Page({
     this.setData({ pasteInput: event.detail.value });
   },
 
+  chooseCorrectionImage() {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ["compressed"],
+      sourceType: ["camera", "album"],
+      success: (result) => {
+        const imagePath = result?.tempFilePaths?.[0];
+
+        if (!imagePath) {
+          this.showToastMessage("没有读取到图片，请重试");
+          return;
+        }
+
+        const correctionSummary = buildCorrectionSummaryData(this.data.lastTaskItems);
+
+        this.setData({
+          activeView: "grade",
+          correctionImagePath: imagePath,
+          correctionRecognizedItems: [],
+          correctionResult: null,
+          correctionBusy: false,
+          correctionWrongItemsAdded: false,
+          ...correctionSummary,
+        });
+      },
+      fail: (error) => {
+        if (error?.errMsg?.includes("cancel")) {
+          return;
+        }
+
+        this.showToastMessage("选图失败，请检查相册或相机权限");
+      },
+    });
+  },
+
+  async runCorrection() {
+    if (!this.data.correctionImagePath) {
+      this.showToastMessage("请先上传一张默写照片");
+      return;
+    }
+
+    const correctionExpectedItems = getCorrectionBaseItems(this.data.lastTaskItems);
+
+    this.setData({
+      correctionBusy: true,
+      correctionExpectedItems,
+      correctionSourceTitle: getCorrectionSourceTitle(this.data.lastTaskItems.length > 0),
+      correctionSourcePreview: getCorrectionSourcePreview(this.data.lastTaskItems),
+    });
+
+    wx.showLoading({
+      title: "AI 批改中",
+      mask: true,
+    });
+
+    try {
+      const ocrResult = await runMockOcr({
+        imagePath: this.data.correctionImagePath,
+        expectedItems: correctionExpectedItems,
+      });
+      const correctionRecognizedItems = splitRecognizedContent(ocrResult);
+      const correctionResult = compareWithExpected({
+        expectedItems: correctionExpectedItems,
+        recognizedItems: correctionRecognizedItems,
+      });
+      const recentCorrection = buildCorrectionHistoryRecord(correctionResult);
+
+      this.setData({
+        activeView: "result",
+        correctionBusy: false,
+        correctionRecognizedItems,
+        correctionResult,
+        correctionWrongItemsAdded: false,
+        recentCorrection,
+      });
+
+      this.showToastMessage(`批改完成：${correctionResult.correctCount} 对 ${correctionResult.totalCount} 题`);
+    } catch (error) {
+      this.setData({ correctionBusy: false });
+      this.showToastMessage(error?.message || "批改失败，请稍后再试");
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
   startDictation() {
     const playerItems = splitDictationInput(this.data.pasteInput);
 
@@ -760,6 +874,7 @@ Page({
       activeView: "player",
       showPasteModal: false,
       playerItems,
+      lastTaskItems: playerItems,
       playerWord: firstItem.text,
       currentPlayerIndex: 0,
       currentPlayerDisplay: 1,
@@ -902,6 +1017,50 @@ Page({
 
   handleSaveProgress() {
     this.showToastMessage("阶段 2 先保留保存进度入口 UI");
+  },
+
+  addWrongItemsToBook() {
+    const correctionResult = this.data.correctionResult;
+
+    if (!correctionResult || !correctionResult.wrongCount) {
+      this.showToastMessage("当前没有可加入错题本的错误项");
+      return;
+    }
+
+    if (this.data.correctionWrongItemsAdded) {
+      this.showToastMessage("本次错误项已经加入错题本");
+      return;
+    }
+
+    const wrongBookEntries = buildWrongBookEntries(correctionResult);
+
+    if (!wrongBookEntries.length) {
+      this.showToastMessage("当前没有新的错误项");
+      return;
+    }
+
+    MISTAKE_ITEMS.unshift(...wrongBookEntries);
+
+    this.syncMistakeFilter(this.data.activeMistakeFilter, {
+      correctionWrongItemsAdded: true,
+    });
+
+    this.showToastMessage(`已加入 ${wrongBookEntries.length} 条错题`);
+  },
+
+  openMistakeBook() {
+    this.syncMistakeFilter(this.data.activeMistakeFilter, {
+      activeView: "mistakes",
+    });
+  },
+
+  restartCorrection() {
+    this.setData({
+      activeView: "grade",
+      correctionResult: null,
+      correctionRecognizedItems: [],
+      correctionWrongItemsAdded: false,
+    });
   },
 
   openAiModal() {

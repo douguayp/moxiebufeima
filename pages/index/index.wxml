@@ -142,19 +142,39 @@
           <view class="page-header page-header--tight">
             <view>
               <text class="page-title">AI Check</text>
-              <text class="page-subtitle">Let AI do the work</text>
+              <text class="page-subtitle">Upload and review</text>
             </view>
             <view class="leaf-badge leaf-badge--green">
               <image class="leaf-badge__icon" src="{{icons.sparklesDark}}" mode="aspectFit" />
             </view>
           </view>
 
-          <view class="empty-card">
-            <view class="empty-card__circle">
-              <image class="empty-card__icon" src="{{icons.scanLineWhite}}" mode="aspectFit" />
-            </view>
-            <text class="empty-card__title">拍默写本批改</text>
-            <text class="empty-card__desc">系统自动比对标准答案{{'\n'}}你只需喝口茶</text>
+          <view class="correction-upload-card" bindtap="chooseCorrectionImage">
+            <block wx:if="{{correctionImagePath}}">
+              <image class="correction-upload-card__preview" src="{{correctionImagePath}}" mode="aspectFill" />
+              <view class="correction-upload-card__overlay">
+                <text class="correction-upload-card__overlay-text">重新选择照片</text>
+              </view>
+            </block>
+            <block wx:else>
+              <view class="empty-card empty-card--compact">
+                <view class="empty-card__circle">
+                  <image class="empty-card__icon" src="{{icons.scanLineWhite}}" mode="aspectFit" />
+                </view>
+                <text class="empty-card__title">上传默写照片</text>
+                <text class="empty-card__desc">拍照或从相册选择{{'\n'}}进入 AI 批改流程</text>
+              </view>
+            </block>
+          </view>
+
+          <view class="correction-source-card">
+            <text class="correction-source-card__title">{{correctionSourceTitle}}</text>
+            <text class="correction-source-card__desc">{{correctionSourcePreview}}</text>
+          </view>
+
+          <view class="primary-button {{correctionBusy ? 'primary-button--disabled' : ''}}" bindtap="runCorrection">
+            <image class="primary-button__icon" src="{{icons.playCircleWhite}}" mode="aspectFit" />
+            <text class="primary-button__text">{{correctionBusy ? '批改中...' : '开始 AI 批改'}}</text>
           </view>
 
           <text class="section-heading">最近批改记录</text>
@@ -169,6 +189,76 @@
               </view>
             </view>
             <image class="record-card__arrow" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{activeView === 'result'}}">
+        <view class="sub-view fade-in-view">
+          <view class="page-header page-header--tight">
+            <view>
+              <text class="page-title">Result</text>
+              <text class="page-subtitle">AI correction summary</text>
+            </view>
+            <view class="leaf-badge leaf-badge--green">
+              <image class="leaf-badge__icon" src="{{icons.sparklesDark}}" mode="aspectFit" />
+            </view>
+          </view>
+
+          <view class="correction-summary-card">
+            <view class="correction-summary-card__main">
+              <view>
+                <text class="correction-summary-card__label">本次正确率</text>
+                <view class="correction-summary-card__score-row">
+                  <text class="correction-summary-card__score">{{correctionResult.accuracy}}</text>
+                  <text class="correction-summary-card__unit">%</text>
+                </view>
+              </view>
+              <view class="correction-summary-card__counts">
+                <view class="correction-summary-pill correction-summary-pill--good">
+                  <text class="correction-summary-pill__value">{{correctionResult.correctCount}}</text>
+                  <text class="correction-summary-pill__label">正确</text>
+                </view>
+                <view class="correction-summary-pill correction-summary-pill--warn">
+                  <text class="correction-summary-pill__value">{{correctionResult.wrongCount}}</text>
+                  <text class="correction-summary-pill__label">错误</text>
+                </view>
+              </view>
+            </view>
+            <text class="correction-summary-card__meta">已按“标准答案 vs OCR 识别结果”生成逐题明细</text>
+          </view>
+
+          <view class="correction-detail-list">
+            <view wx:for="{{correctionResult.details}}" wx:key="id" class="correction-detail-card">
+              <view class="correction-detail-card__top">
+                <text class="correction-detail-card__index">第 {{item.index}} 题</text>
+                <text class="correction-detail-card__status {{item.correct ? 'correction-detail-card__status--good' : 'correction-detail-card__status--warn'}}">
+                  {{item.correct ? '正确' : '错误'}}
+                </text>
+              </view>
+              <view class="correction-detail-card__line">
+                <text class="correction-detail-card__label">标准答案</text>
+                <text class="correction-detail-card__value">{{item.expectedText}}</text>
+              </view>
+              <view class="correction-detail-card__line">
+                <text class="correction-detail-card__label">识别结果</text>
+                <text class="correction-detail-card__value {{item.correct ? '' : 'correction-detail-card__value--wrong'}}">{{item.recognizedText}}</text>
+              </view>
+              <text class="correction-detail-card__tip">{{item.tip}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{correctionResult.wrongCount > 0}}" class="primary-button {{correctionWrongItemsAdded ? 'primary-button--disabled' : ''}}" bindtap="addWrongItemsToBook">
+            <image class="primary-button__icon" src="{{icons.arrowRightWhite}}" mode="aspectFit" />
+            <text class="primary-button__text">{{correctionWrongItemsAdded ? '已加入错题本' : '将错误项加入错题本'}}</text>
+          </view>
+
+          <view class="secondary-button" bindtap="openMistakeBook">
+            <text class="secondary-button__text">查看错题本</text>
+          </view>
+
+          <view class="ghost-button" bindtap="restartCorrection">
+            <text class="ghost-button__text">继续拍照批改</text>
           </view>
         </view>
       </block>
@@ -258,7 +348,7 @@
       </block>
     </scroll-view>
 
-    <view wx:if="{{activeView !== 'player'}}" class="bottom-nav">
+    <view wx:if="{{activeView !== 'player' && activeView !== 'result'}}" class="bottom-nav">
       <view class="nav-item {{activeView === 'dictate' ? 'nav-item--active' : 'nav-item--inactive'}}" bindtap="switchTab" data-view="dictate">
         <image class="nav-item__icon" src="{{activeView === 'dictate' ? icons.homeDark : icons.homeMuted}}" mode="aspectFit" />
         <text class="nav-item__text {{activeView === 'dictate' ? 'nav-item__text--active' : 'nav-item__text--inactive'}}">主页</text>

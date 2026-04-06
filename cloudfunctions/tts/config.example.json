@@ -1,0 +1,10 @@
+{
+  "secretId": "你的腾讯云 SecretId",
+  "secretKey": "你的腾讯云 SecretKey",
+  "region": "ap-shanghai",
+  "voiceTypeZh": 502007,
+  "voiceTypeEn": 502007,
+  "speed": 0,
+  "volume": 1,
+  "sampleRate": 16000
+}

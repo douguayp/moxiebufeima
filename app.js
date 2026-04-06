@@ -9,7 +9,20 @@ App({
   globalData: {},
 
   onLaunch() {
+    this.initCloud();
     this.loadCustomFonts();
+  },
+
+  initCloud() {
+    if (!wx.cloud) {
+      console.warn("wx.cloud is unavailable in current environment");
+      return;
+    }
+
+    wx.cloud.init({
+      env: wx.cloud.DYNAMIC_CURRENT_ENV,
+      traceUser: true,
+    });
   },
 
   loadCustomFonts() {
