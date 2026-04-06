@@ -58,10 +58,13 @@ const {
   buildWrongBookEntries,
   compareWithExpected,
   getFallbackTaskItems,
-  runMockOcr,
-  runMockPhotoDictationOcr,
-  splitRecognizedContent,
 } = require("../../services/correction/mock");
+const {
+  OCR_RUNTIME_PROVIDER_DEFAULTS,
+  OCR_RUNTIME_PROVIDER_STORAGE_KEYS,
+  recognizeCorrection,
+  recognizePhotoDictation,
+} = require("../../services/ocr/index");
 const { synthesizeSpeechToFile } = require("../../services/tts/index");
 
 const PASTE_PLACEHOLDER = "例如：\n苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
@@ -357,6 +360,58 @@ function getSpeechRateLabel(selectedSpeechRateIndex) {
   return SPEECH_RATE_OPTIONS[selectedSpeechRateIndex]?.label || "标准";
 }
 
+function getPhotoSetupOcrStatusLabel(status) {
+  if (status === "loading") {
+    return "识别中";
+  }
+
+  if (status === "success") {
+    return "识别成功";
+  }
+
+  if (status === "empty") {
+    return "识别为空";
+  }
+
+  if (status === "error") {
+    return "识别失败";
+  }
+
+  return "未识别";
+}
+
+function getStorageSyncSafe(key) {
+  try {
+    return wx.getStorageSync(key) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function getPhotoDictationProviderName() {
+  return (
+    getStorageSyncSafe(OCR_RUNTIME_PROVIDER_STORAGE_KEYS.photoDictation) ||
+    OCR_RUNTIME_PROVIDER_DEFAULTS.photoDictation
+  );
+}
+
+function isDebugRuntime() {
+  try {
+    const envVersion = wx.getAccountInfoSync?.().miniProgram?.envVersion;
+    return envVersion !== "release";
+  } catch (error) {
+    return true;
+  }
+}
+
+function logOcrDebug(stage, payload) {
+  if (!isDebugRuntime()) {
+    return;
+  }
+
+  console.info(`[OCR DEBUG] ${stage}`, payload);
+}
+
 function buildAnalysisPreset(playerItems) {
   const counts = playerItems.reduce(
     (result, item) => {
@@ -601,6 +656,11 @@ Page({
     photoSetupInput: "",
     photoSetupDetectedCount: 0,
     photoSetupAutoPlay: false,
+    photoSetupOcrStatus: "idle",
+    photoSetupOcrStatusLabel: getPhotoSetupOcrStatusLabel("idle"),
+    photoSetupOcrMessage: "裁剪后的教材内容会先进行 OCR 识别，再写入下方可编辑文本框。",
+    photoSetupOcrProvider: "",
+    photoSetupCanStart: false,
     pasteInput: "",
     pastePlaceholder: PASTE_PLACEHOLDER,
     playerItems: [],
@@ -729,6 +789,133 @@ Page({
     this.toastTimer = setTimeout(() => {
       this.setData({ showToast: false });
     }, 2200);
+  },
+
+  setPhotoSetupState(partialData = {}) {
+    const nextInput =
+      Object.prototype.hasOwnProperty.call(partialData, "photoSetupInput")
+        ? partialData.photoSetupInput
+        : this.data.photoSetupInput;
+    const nextStatus =
+      Object.prototype.hasOwnProperty.call(partialData, "photoSetupOcrStatus")
+        ? partialData.photoSetupOcrStatus
+        : this.data.photoSetupOcrStatus;
+    const nextDetectedCount = countDictationItems(nextInput);
+
+    this.setData({
+      ...partialData,
+      photoSetupDetectedCount: nextDetectedCount,
+      photoSetupCanStart: nextStatus !== "loading" && nextDetectedCount > 0,
+      photoSetupOcrStatusLabel: getPhotoSetupOcrStatusLabel(nextStatus),
+    });
+  },
+
+  openPhotoRecognitionSetup(imagePath) {
+    this.setPhotoSetupState({
+      activeView: "photoSetup",
+      showPhotoConfirmSheet: false,
+      photoConfirmImagePath: "",
+      photoConfirmSourceType: "",
+      photoSetupImagePath: imagePath,
+      photoSetupInput: "",
+      photoSetupAutoPlay: false,
+      photoSetupOcrStatus: "idle",
+      photoSetupOcrMessage: "裁剪后的教材内容会先进行 OCR 识别，再写入下方可编辑文本框。",
+      photoSetupOcrProvider: "",
+    });
+  },
+
+  async performPhotoSetupOcr(imagePath, options = {}) {
+    if (!imagePath) {
+      this.setPhotoSetupState({
+        photoSetupOcrStatus: "error",
+        photoSetupOcrMessage: "当前没有可识别的图片，请重新拍照后再试",
+      });
+      return;
+    }
+
+    const requestedProvider = getPhotoDictationProviderName();
+
+    this.setPhotoSetupState({
+      photoSetupImagePath: imagePath,
+      photoSetupOcrStatus: "loading",
+      photoSetupOcrMessage: "正在识别教材页印刷体内容，请稍候…",
+      photoSetupOcrProvider: requestedProvider,
+      photoSetupInput: "",
+    });
+
+    if (options.showLoading !== false) {
+      wx.showLoading({
+        title: "识别中",
+        mask: true,
+      });
+    }
+
+    try {
+      const ocrResult = await recognizePhotoDictation({
+        imagePath,
+      });
+      const playerItems = (ocrResult.items || []).filter((item) => item.text);
+      const cleanedText = buildDictationEditorText(playerItems);
+      const success = playerItems.length > 0;
+      const provider = ocrResult.provider || requestedProvider;
+
+      logOcrDebug("photo-dictation-recognition", {
+        provider,
+        requestedProvider,
+        rawResult: ocrResult.rawResult,
+        cleanedText,
+        success,
+        count: playerItems.length,
+        warningMessage: ocrResult.warningMessage || "",
+      });
+
+      if (!success) {
+        this.setPhotoSetupState({
+          photoSetupOcrStatus: "empty",
+          photoSetupOcrProvider: provider,
+          photoSetupOcrMessage: "没有识别到可默写内容，请重新拍照，或裁剪更聚焦的教材区域后重试。",
+          photoSetupInput: "",
+        });
+        this.showToastMessage("当前图片没有识别到可默写内容");
+        return;
+      }
+
+      this.setPhotoSetupState({
+        photoSetupOcrStatus: "success",
+        photoSetupOcrProvider: provider,
+        photoSetupOcrMessage:
+          ocrResult.warningMessage || `已识别 ${playerItems.length} 条内容，可直接修改后开始默写。`,
+        photoSetupInput: cleanedText,
+      });
+
+      this.showToastMessage(
+        ocrResult.warningMessage || `OCR 已识别 ${playerItems.length} 条内容，请确认后开始默写`
+      );
+    } catch (error) {
+      logOcrDebug("photo-dictation-recognition-failed", {
+        provider: requestedProvider,
+        success: false,
+        errorCode: error?.code || "",
+        errorMessage: error?.message || "",
+      });
+
+      this.setPhotoSetupState({
+        photoSetupOcrStatus: "error",
+        photoSetupOcrProvider: requestedProvider,
+        photoSetupOcrMessage:
+          error?.message || "OCR 识别失败，请重试；若仍失败，请重新拍照或裁剪更清晰的区域。",
+      });
+      this.showToastMessage(error?.message || "OCR 识别失败，请稍后再试");
+    } finally {
+      if (options.showLoading !== false) {
+        wx.hideLoading();
+      }
+    }
+  },
+
+  retryPhotoSetupOcr() {
+    this.performPhotoSetupOcr(this.data.photoSetupImagePath);
   },
 
   openPhotoConfirm(imagePath, sourceType = "") {
@@ -1326,39 +1513,25 @@ Page({
     });
   },
 
-  openPhotoRecognitionSetup(imagePath, playerItems) {
-    const photoSetupInput = buildDictationEditorText(playerItems);
-
-    this.setData({
-      activeView: "photoSetup",
-      showPhotoConfirmSheet: false,
-      photoConfirmImagePath: "",
-      photoConfirmSourceType: "",
-      photoSetupImagePath: imagePath,
-      photoSetupInput,
-      photoSetupDetectedCount: playerItems.length,
-      photoSetupAutoPlay: false,
-    });
-  },
-
   closePhotoRecognitionSetup() {
     this.clearAutoPlayTimer();
     this.stopSpeechPlayback();
-    this.setData({
+    this.setPhotoSetupState({
       activeView: "dictate",
       photoSetupImagePath: "",
       photoSetupInput: "",
-      photoSetupDetectedCount: 0,
       photoSetupAutoPlay: false,
+      photoSetupOcrStatus: "idle",
+      photoSetupOcrMessage: "裁剪后的教材内容会先进行 OCR 识别，再写入下方可编辑文本框。",
+      photoSetupOcrProvider: "",
     });
   },
 
   handlePhotoSetupInput(event) {
     const photoSetupInput = event.detail.value;
 
-    this.setData({
+    this.setPhotoSetupState({
       photoSetupInput,
-      photoSetupDetectedCount: countDictationItems(photoSetupInput),
     });
   },
 
@@ -1376,24 +1549,38 @@ Page({
   },
 
   async restartPhotoDictationFromSetup() {
-    this.setData({
+    this.setPhotoSetupState({
       activeView: "dictate",
       photoSetupImagePath: "",
       photoSetupInput: "",
-      photoSetupDetectedCount: 0,
       photoSetupAutoPlay: false,
+      photoSetupOcrStatus: "idle",
+      photoSetupOcrMessage: "裁剪后的教材内容会先进行 OCR 识别，再写入下方可编辑文本框。",
+      photoSetupOcrProvider: "",
     });
 
     await this.startPhotoDictationFlow();
   },
 
   startPhotoDictationFromSetup() {
+    if (this.data.photoSetupOcrStatus === "loading") {
+      this.showToastMessage("OCR 识别中，请稍候");
+      return;
+    }
+
     const playerItems = splitDictationInput(this.data.photoSetupInput || "");
 
     if (!playerItems.length) {
-      this.showToastMessage("请先保留至少一条可默写内容");
+      this.showToastMessage("请先确认至少一条可默写内容");
       return;
     }
+
+    logOcrDebug("photo-dictation-user-confirmed", {
+      provider: this.data.photoSetupOcrProvider || getPhotoDictationProviderName(),
+      finalText: this.data.photoSetupInput,
+      success: true,
+      count: playerItems.length,
+    });
 
     this.enterPlayerWithItems(playerItems, {
       autoPlay: this.data.photoSetupAutoPlay,
@@ -1409,29 +1596,8 @@ Page({
       return;
     }
 
-    wx.showLoading({
-      title: "识别中",
-      mask: true,
-    });
-
-    try {
-      const ocrResult = await runMockPhotoDictationOcr({
-        imagePath,
-      });
-      const playerItems = splitRecognizedContent(ocrResult).filter((item) => item.text);
-
-      if (!playerItems.length) {
-        this.showToastMessage("没有识别到可听写内容，请换一张更清晰的图片");
-        return;
-      }
-
-      this.openPhotoRecognitionSetup(imagePath, playerItems);
-      this.showToastMessage(`OCR 已识别 ${playerItems.length} 条内容，请确认后开始默写`);
-    } catch (error) {
-      this.showToastMessage(error?.message || "拍照默写生成失败，请稍后再试");
-    } finally {
-      wx.hideLoading();
-    }
+    this.openPhotoRecognitionSetup(imagePath);
+    await this.performPhotoSetupOcr(imagePath);
   },
 
   openPasteModal() {
@@ -1505,11 +1671,11 @@ Page({
     });
 
     try {
-      const ocrResult = await runMockOcr({
+      const ocrResult = await recognizeCorrection({
         imagePath: this.data.correctionImagePath,
         expectedItems: correctionExpectedItems,
       });
-      const correctionRecognizedItems = splitRecognizedContent(ocrResult);
+      const correctionRecognizedItems = ocrResult.items || [];
       const correctionResult = compareWithExpected({
         expectedItems: correctionExpectedItems,
         recognizedItems: correctionRecognizedItems,
@@ -1525,7 +1691,11 @@ Page({
         recentCorrection,
       });
 
-      this.showToastMessage(`批改完成：${correctionResult.correctCount} 对 ${correctionResult.totalCount} 题`);
+      if (ocrResult.warningMessage) {
+        this.showToastMessage(ocrResult.warningMessage);
+      } else {
+        this.showToastMessage(`批改完成：${correctionResult.correctCount} 对 ${correctionResult.totalCount} 题`);
+      }
     } catch (error) {
       this.setData({ correctionBusy: false });
       this.showToastMessage(error?.message || "批改失败，请稍后再试");

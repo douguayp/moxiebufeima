@@ -106,12 +106,24 @@
                 <text class="ocr-setup-card__count">共 {{photoSetupDetectedCount}} 条</text>
               </view>
               <text class="ocr-setup-card__desc">默认可直接编辑。删除无关内容，改错字，每行一条更稳定。</text>
+              <view class="ocr-setup-card__meta-row">
+                <text class="ocr-setup-status ocr-setup-status--{{photoSetupOcrStatus}}">{{photoSetupOcrStatusLabel}}</text>
+                <text
+                  wx:if="{{photoSetupOcrStatus === 'error' || photoSetupOcrStatus === 'empty'}}"
+                  class="ocr-setup-inline-action"
+                  bindtap="retryPhotoSetupOcr"
+                >重新识别</text>
+              </view>
+              <text class="ocr-setup-card__hint {{photoSetupOcrStatus === 'error' || photoSetupOcrStatus === 'empty' ? 'ocr-setup-card__hint--warn' : ''}}">
+                {{photoSetupOcrMessage}}
+              </text>
             </view>
             <textarea
-              class="ocr-setup-textarea"
+              class="ocr-setup-textarea {{photoSetupOcrStatus === 'loading' ? 'ocr-setup-textarea--disabled' : ''}}"
               value="{{photoSetupInput}}"
               maxlength="-1"
-              placeholder="OCR 识别结果会显示在这里"
+              disabled="{{photoSetupOcrStatus === 'loading'}}"
+              placeholder="{{photoSetupOcrStatus === 'loading' ? '正在识别教材内容...' : 'OCR 识别结果会显示在这里'}}"
               bindinput="handlePhotoSetupInput"
             />
           </view>
@@ -461,9 +473,9 @@
 
     <view wx:if="{{activeView === 'photoSetup'}}" class="page-fixed-footer">
       <view class="page-fixed-footer__inner">
-        <view class="primary-button primary-button--footer" bindtap="startPhotoDictationFromSetup">
+        <view class="primary-button primary-button--footer {{photoSetupCanStart ? '' : 'primary-button--disabled'}}" bindtap="startPhotoDictationFromSetup">
           <image class="primary-button__icon" src="{{icons.playCircleWhite}}" mode="aspectFit" />
-          <text class="primary-button__text">开始默写</text>
+          <text class="primary-button__text">{{photoSetupOcrStatus === 'loading' ? '识别中...' : '开始默写'}}</text>
         </view>
       </view>
     </view>
