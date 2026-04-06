@@ -403,8 +403,8 @@
 }
 
 .player-topbar__meta {
-  font-size: 24rpx;
-  color: #5f7c6b;
+  font-size: 28rpx;
+  color: #556f5f;
   font-weight: 700;
 }
 
@@ -611,9 +611,9 @@
 }
 
 .ocr-header-switch__label {
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 700;
-  color: #5f7c6b;
+  color: #556f5f;
 }
 
 .ocr-setup-card__title {
@@ -639,9 +639,9 @@
 .ocr-setup-card__desc {
   display: block;
   margin-top: 10rpx;
-  font-size: 24rpx;
+  font-size: 28rpx;
   line-height: 1.5;
-  color: #5f7c6b;
+  color: #556f5f;
 }
 
 .ocr-setup-textarea {
@@ -691,7 +691,7 @@
 
 .ocr-setting-row__title {
   display: block;
-  font-size: 24rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #1b3827;
 }
@@ -699,9 +699,9 @@
 .ocr-setting-row__desc {
   display: block;
   margin-top: 4rpx;
-  font-size: 23rpx;
+  font-size: 26rpx;
   line-height: 1.4;
-  color: #5f7c6b;
+  color: #556f5f;
 }
 
 .ocr-setting-row__value {
@@ -744,16 +744,16 @@
 
 .ocr-setting-select__label {
   display: block;
-  font-size: 22rpx;
-  color: #5f7c6b;
+  font-size: 26rpx;
+  color: #556f5f;
   font-weight: 700;
 }
 
 .ocr-setting-select__value {
   display: block;
   margin-top: 4rpx;
-  font-size: 28rpx;
-  color: #1b3827;
+  font-size: 32rpx;
+  color: #163426;
   font-weight: 700;
 }
 
