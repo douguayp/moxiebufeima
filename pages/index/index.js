@@ -43,9 +43,11 @@ const ICONS = {
 };
 
 const INTERVAL_SECONDS = [3, 5, 8, 10];
+const MAX_TTS_CONTENT_LENGTH = 48;
+const WECHAT_SI_PLUGIN_NAME = "WechatSI";
+const WECHAT_SI_PLUGIN_MISSING_MESSAGE = "朗读插件不可用，请先在小程序后台添加“微信同声传译”插件";
 
 const PASTE_PLACEHOLDER = "例如：\n苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
-const DEFAULT_PASTE_INPUT = "苹果 Apple 蜿蜒 Environment\nI go to school.\n春意盎然";
 const GENERATED_PASTE_INPUT = "苹果 Apple 蜿蜒 Environment\nbeautiful awkward\nWe practice after dinner.";
 
 const RECENT_CORRECTION = {
@@ -96,6 +98,8 @@ const REVIEW_TIMELINE = [
   },
 ];
 
+let wechatSiPlugin = null;
+
 function detectItemLanguage(text) {
   const hasZh = /[\u4e00-\u9fff]/.test(text);
   const hasEn = /[A-Za-z]/.test(text);
@@ -127,6 +131,114 @@ function getPlayerCardLabel(language) {
   if (language === "en") return "当前听写内容 · English";
   if (language === "mixed") return "当前听写内容 · 中英混合";
   return "当前听写内容";
+}
+
+function getSpeechLangCode(language) {
+  if (language === "en") {
+    return "en_US";
+  }
+
+  return "zh_CN";
+}
+
+function forceSplitSpeechText(text, maxLength = MAX_TTS_CONTENT_LENGTH) {
+  const segments = [];
+
+  for (let start = 0; start < text.length; start += maxLength) {
+    segments.push(text.slice(start, start + maxLength));
+  }
+
+  return segments;
+}
+
+function packSpeechSegments(units, maxLength = MAX_TTS_CONTENT_LENGTH) {
+  const segments = [];
+  let current = "";
+
+  units.forEach((unit) => {
+    const piece = unit.trim();
+
+    if (!piece) {
+      return;
+    }
+
+    if (!current) {
+      if (piece.length <= maxLength) {
+        current = piece;
+      } else {
+        segments.push(...forceSplitSpeechText(piece, maxLength));
+      }
+      return;
+    }
+
+    const candidate = `${current} ${piece}`.trim();
+
+    if (candidate.length <= maxLength) {
+      current = candidate;
+      return;
+    }
+
+    segments.push(current);
+
+    if (piece.length <= maxLength) {
+      current = piece;
+      return;
+    }
+
+    segments.push(...forceSplitSpeechText(piece, maxLength));
+    current = "";
+  });
+
+  if (current) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+function splitSpeechContent(text, language) {
+  const normalized = text.trim().replace(/\s+/g, " ");
+
+  if (!normalized) {
+    return [];
+  }
+
+  if (normalized.length <= MAX_TTS_CONTENT_LENGTH) {
+    return [normalized];
+  }
+
+  if (language === "en") {
+    return packSpeechSegments(normalized.split(/\s+/), MAX_TTS_CONTENT_LENGTH);
+  }
+
+  const punctuationSegments = normalized
+    .match(/[^，。！？；,.!?;]+[，。！？；,.!?;]*/g)
+    ?.map((item) => item.trim())
+    .filter(Boolean);
+
+  if (punctuationSegments && punctuationSegments.length > 1) {
+    return packSpeechSegments(punctuationSegments, MAX_TTS_CONTENT_LENGTH);
+  }
+
+  return forceSplitSpeechText(normalized, MAX_TTS_CONTENT_LENGTH);
+}
+
+function getWechatSiPlugin() {
+  if (wechatSiPlugin) {
+    return wechatSiPlugin;
+  }
+
+  try {
+    if (typeof requirePlugin !== "function") {
+      return null;
+    }
+
+    wechatSiPlugin = requirePlugin(WECHAT_SI_PLUGIN_NAME);
+    return wechatSiPlugin;
+  } catch (error) {
+    console.warn("WechatSI plugin unavailable", error);
+    return null;
+  }
 }
 
 function shouldSplitInline(line) {
@@ -337,6 +449,19 @@ Page({
     this.setData({
       statusBarHeight,
     });
+
+    this.speechCache = {};
+    this.activeSpeechSession = 0;
+    this.currentSpeechSegments = [];
+    this.currentSpeechSegmentIndex = -1;
+    this.currentSpeechLangCode = "zh_CN";
+    this.currentSpeechCacheKey = "";
+  },
+
+  onHide() {
+    this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
+    this.setData({ autoPlayEnabled: false });
   },
 
   onUnload() {
@@ -345,6 +470,13 @@ Page({
     }
 
     this.clearAutoPlayTimer();
+
+    this.stopSpeechPlayback();
+
+    if (this.audioContext) {
+      this.audioContext.destroy();
+      this.audioContext = null;
+    }
   },
 
   noop() {},
@@ -383,6 +515,7 @@ Page({
   switchTab(event) {
     const { view } = event.currentTarget.dataset;
     this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
     this.setData({
       activeView: view,
       autoPlayEnabled: false,
@@ -392,7 +525,192 @@ Page({
 
   goToReview() {
     this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
     this.setData({ activeView: "review" });
+  },
+
+  ensureSpeechPlugin() {
+    const plugin = getWechatSiPlugin();
+
+    if (plugin && typeof plugin.textToSpeech === "function") {
+      return plugin;
+    }
+
+    return null;
+  },
+
+  ensureAudioContext() {
+    if (this.audioContext) {
+      return this.audioContext;
+    }
+
+    const audioContext = wx.createInnerAudioContext();
+    audioContext.obeyMuteSwitch = false;
+    audioContext.autoplay = false;
+
+    audioContext.onEnded(() => {
+      this.handleSpeechEnded();
+    });
+
+    audioContext.onError((error) => {
+      this.handleSpeechError(error);
+    });
+
+    this.audioContext = audioContext;
+    return audioContext;
+  },
+
+  stopSpeechPlayback() {
+    this.activeSpeechSession = (this.activeSpeechSession || 0) + 1;
+    this.currentSpeechSegments = [];
+    this.currentSpeechSegmentIndex = -1;
+    this.currentSpeechLangCode = "zh_CN";
+    this.currentSpeechCacheKey = "";
+
+    if (this.audioContext) {
+      try {
+        this.audioContext.stop();
+      } catch (error) {
+        console.warn("audio stop failed", error);
+      }
+    }
+  },
+
+  resolveSpeechUrl(content, langCode) {
+    const cacheKey = `${langCode}::${content}`;
+    const cachedSpeech = this.speechCache?.[cacheKey];
+
+    if (cachedSpeech && cachedSpeech.expiresAt > Date.now() + 60 * 1000) {
+      return Promise.resolve({
+        url: cachedSpeech.url,
+        cacheKey,
+      });
+    }
+
+    const plugin = this.ensureSpeechPlugin();
+
+    if (!plugin) {
+      return Promise.reject(new Error("PLUGIN_UNAVAILABLE"));
+    }
+
+    return new Promise((resolve, reject) => {
+      plugin.textToSpeech({
+        lang: langCode,
+        tts: true,
+        content,
+        success: (result) => {
+          if (result && result.retcode === 0 && result.filename) {
+            const expiresAt =
+              typeof result.expired_time === "number"
+                ? result.expired_time * 1000
+                : Date.now() + 2 * 60 * 60 * 1000;
+
+            this.speechCache[cacheKey] = {
+              url: result.filename,
+              expiresAt,
+            };
+
+            resolve({
+              url: result.filename,
+              cacheKey,
+            });
+            return;
+          }
+
+          const error = new Error(result?.msg || "语音合成失败");
+          error.code = result?.retcode;
+          reject(error);
+        },
+        fail: (error) => {
+          reject(error || new Error("语音合成请求失败"));
+        },
+      });
+    });
+  },
+
+  async playSpeechSegment(segments, langCode, speechSession, segmentIndex = 0) {
+    const segment = segments[segmentIndex];
+
+    if (!segment || speechSession !== this.activeSpeechSession) {
+      return;
+    }
+
+    try {
+      const { url, cacheKey } = await this.resolveSpeechUrl(segment, langCode);
+
+      if (speechSession !== this.activeSpeechSession) {
+        return;
+      }
+
+      const audioContext = this.ensureAudioContext();
+      this.currentSpeechSegments = segments;
+      this.currentSpeechSegmentIndex = segmentIndex;
+      this.currentSpeechLangCode = langCode;
+      this.currentSpeechCacheKey = cacheKey;
+      audioContext.src = url;
+      audioContext.play();
+    } catch (error) {
+      if (speechSession !== this.activeSpeechSession) {
+        return;
+      }
+
+      this.handleSpeechFailure(error);
+    }
+  },
+
+  handleSpeechEnded() {
+    if (!this.currentSpeechSegments.length) {
+      return;
+    }
+
+    if (this.currentSpeechSegmentIndex < this.currentSpeechSegments.length - 1) {
+      this.playSpeechSegment(
+        this.currentSpeechSegments,
+        this.currentSpeechLangCode,
+        this.activeSpeechSession,
+        this.currentSpeechSegmentIndex + 1
+      );
+      return;
+    }
+
+    this.currentSpeechSegments = [];
+    this.currentSpeechSegmentIndex = -1;
+    this.currentSpeechCacheKey = "";
+
+    if (this.data.autoPlayEnabled) {
+      this.scheduleAutoPlay();
+    }
+  },
+
+  handleSpeechFailure(error) {
+    if (this.currentSpeechCacheKey) {
+      delete this.speechCache[this.currentSpeechCacheKey];
+    }
+
+    this.currentSpeechSegments = [];
+    this.currentSpeechSegmentIndex = -1;
+    this.currentSpeechCacheKey = "";
+    this.clearAutoPlayTimer();
+
+    if (this.data.autoPlayEnabled) {
+      this.setData({ autoPlayEnabled: false });
+    }
+
+    if (error?.message === "PLUGIN_UNAVAILABLE") {
+      this.showToastMessage(WECHAT_SI_PLUGIN_MISSING_MESSAGE);
+      return;
+    }
+
+    this.showToastMessage(error?.msg || error?.errMsg || error?.message || "朗读失败，请检查网络后重试");
+  },
+
+  handleSpeechError(error) {
+    if (!this.currentSpeechSegments.length) {
+      return;
+    }
+
+    console.warn("audio playback failed", error);
+    this.handleSpeechFailure(error);
   },
 
   handleToolTap(event) {
@@ -414,7 +732,7 @@ Page({
   openPasteModal() {
     this.setData({
       showPasteModal: true,
-      pasteInput: this.data.pasteInput || DEFAULT_PASTE_INPUT,
+      pasteInput: this.data.pasteInput,
     });
   },
 
@@ -436,6 +754,7 @@ Page({
     const firstItem = playerItems[0];
 
     this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
 
     this.setData({
       activeView: "player",
@@ -448,7 +767,6 @@ Page({
       playerCardLabel: getPlayerCardLabel(firstItem.language),
       revealed: false,
       autoPlayEnabled: false,
-      selectedIntervalIndex: 1,
     });
 
     this.showToastMessage(`已创建 ${playerItems.length} 条自动识别任务`);
@@ -456,6 +774,7 @@ Page({
 
   exitPlayer() {
     this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
     this.setData({
       activeView: "dictate",
       revealed: false,
@@ -478,6 +797,8 @@ Page({
   },
 
   prevWord() {
+    this.stopSpeechPlayback();
+
     if (this.data.currentPlayerIndex === 0) {
       this.showToastMessage("这是第一个词哦！");
       return;
@@ -491,6 +812,8 @@ Page({
   },
 
   nextWord() {
+    this.stopSpeechPlayback();
+
     if (this.data.currentPlayerIndex >= this.data.playerItems.length - 1) {
       this.setData({ autoPlayEnabled: false });
       this.clearAutoPlayTimer();
@@ -518,11 +841,17 @@ Page({
     }
 
     this.clearAutoPlayTimer();
-    this.showToastMessage(`Mock ${currentItem.languageLabel}播报：${currentItem.text}`);
+    this.stopSpeechPlayback();
 
-    if (this.data.autoPlayEnabled) {
-      this.scheduleAutoPlay();
+    const speechSegments = splitSpeechContent(currentItem.text, currentItem.language);
+
+    if (!speechSegments.length) {
+      this.showToastMessage("当前内容暂时无法朗读");
+      return;
     }
+
+    const speechSession = this.activeSpeechSession;
+    this.playSpeechSegment(speechSegments, getSpeechLangCode(currentItem.language), speechSession, 0);
   },
 
   scheduleAutoPlay() {
@@ -537,7 +866,7 @@ Page({
     this.autoPlayTimer = setTimeout(() => {
       if (this.data.currentPlayerIndex >= this.data.playerItems.length - 1) {
         this.setData({ autoPlayEnabled: false });
-        this.showToastMessage("Mock 自动播放已完成");
+        this.showToastMessage("自动播放已完成");
         return;
       }
 
@@ -561,12 +890,13 @@ Page({
     this.setData({ autoPlayEnabled });
 
     if (autoPlayEnabled) {
-      this.showToastMessage(`已开启 Mock 自动播放（${INTERVAL_SECONDS[this.data.selectedIntervalIndex]} 秒）`);
+      this.showToastMessage(`已开启自动播放（${INTERVAL_SECONDS[this.data.selectedIntervalIndex]} 秒）`);
       this.playCurrentWord();
       return;
     }
 
     this.clearAutoPlayTimer();
+    this.stopSpeechPlayback();
     this.showToastMessage("已关闭自动播放");
   },
 
@@ -595,7 +925,7 @@ Page({
       return;
     }
 
-    const analysisPreset = buildAnalysisPreset(splitDictationInput(this.data.pasteInput || DEFAULT_PASTE_INPUT));
+    const analysisPreset = buildAnalysisPreset(splitDictationInput(this.data.pasteInput || PASTE_PLACEHOLDER));
 
     this.setData({
       showAiModal: false,

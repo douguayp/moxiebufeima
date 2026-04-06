@@ -129,14 +129,6 @@
           </view>
 
           <view class="player-settings">
-            <picker mode="selector" range="{{intervalOptions}}" value="{{selectedIntervalIndex}}" bindchange="handleIntervalChange">
-              <view class="interval-pill">
-                <image class="interval-pill__icon" src="{{icons.timerDark}}" mode="aspectFit" />
-                <text class="interval-pill__label">间隔</text>
-                <text class="interval-pill__value">{{intervalOptions[selectedIntervalIndex]}}</text>
-              </view>
-            </picker>
-
             <view class="autoplay-button {{autoPlayEnabled ? 'autoplay-button--active' : ''}}" bindtap="toggleAutoPlay">
               <image class="autoplay-button__icon" src="{{icons.playSquareDark}}" mode="aspectFit" />
               <text class="autoplay-button__text">{{autoPlayEnabled ? '停止自动' : '自动播放'}}</text>
@@ -295,13 +287,29 @@
         </view>
         <text class="sheet-note">直接粘贴内容即可。系统会自动拆分条目，并识别中文或英文进行对应播报。</text>
 
-        <textarea
-          class="sheet-textarea"
-          value="{{pasteInput}}"
-          placeholder="{{pastePlaceholder}}"
-          maxlength="-1"
-          bindinput="handlePasteInput"
-        />
+        <picker mode="selector" range="{{intervalOptions}}" value="{{selectedIntervalIndex}}" bindchange="handleIntervalChange">
+          <view class="interval-setting-card">
+            <view class="interval-setting-card__content">
+              <image class="interval-setting-card__icon" src="{{icons.timerDark}}" mode="aspectFit" />
+              <view>
+                <text class="interval-setting-card__title">朗读间隔</text>
+                <text class="interval-setting-card__desc">开始听写后自动播放将使用这个间隔</text>
+              </view>
+            </view>
+            <text class="interval-setting-card__value">{{intervalOptions[selectedIntervalIndex]}}</text>
+          </view>
+        </picker>
+
+        <view class="sheet-textarea-wrap">
+          <textarea
+            class="sheet-textarea"
+            value="{{pasteInput}}"
+            placeholder="{{pastePlaceholder}}"
+            maxlength="-1"
+            bindinput="handlePasteInput"
+          />
+          <text class="sheet-textarea-tip">内容较多时可在输入框内上下滚动查看</text>
+        </view>
         <view class="primary-button" bindtap="startDictation">
           <image class="primary-button__icon" src="{{icons.playCircleWhite}}" mode="aspectFit" />
           <text class="primary-button__text">开始智能听写</text>
