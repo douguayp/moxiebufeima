@@ -102,30 +102,38 @@
           <view class="ocr-setup-card ocr-setup-card--result">
             <view class="ocr-setup-card__header">
               <view class="ocr-setup-card__title-row">
-                <text class="ocr-setup-card__title">识别结果</text>
-                <text class="ocr-setup-card__count">共 {{photoSetupDetectedCount}} 条</text>
+                <view class="ocr-setup-card__title-group">
+                  <text class="ocr-setup-card__title">识别结果</text>
+                </view>
+                <view class="ocr-setup-title-meta">
+                  <text class="ocr-setup-title-status ocr-setup-title-status--{{photoSetupOcrStatus}}">{{photoSetupOcrStatusLabel}}</text>
+                  <text wx:if="{{photoSetupDetectedCount > 0}}" class="ocr-setup-title-count">（识别{{photoSetupDetectedCount}}条）</text>
+                </view>
               </view>
-              <text class="ocr-setup-card__desc">默认可直接编辑。删除无关内容，改错字，每行一条更稳定。</text>
-              <view class="ocr-setup-card__meta-row">
-                <text class="ocr-setup-status ocr-setup-status--{{photoSetupOcrStatus}}">{{photoSetupOcrStatusLabel}}</text>
+              <view wx:if="{{photoSetupOcrStatus !== 'success'}}" class="ocr-setup-card__hint-row">
+                <text class="ocr-setup-card__hint {{photoSetupOcrStatus === 'error' || photoSetupOcrStatus === 'empty' ? 'ocr-setup-card__hint--warn' : ''}}">
+                  {{photoSetupOcrMessage}}
+                </text>
                 <text
                   wx:if="{{photoSetupOcrStatus === 'error' || photoSetupOcrStatus === 'empty'}}"
                   class="ocr-setup-inline-action"
                   bindtap="retryPhotoSetupOcr"
                 >重新识别</text>
               </view>
-              <text class="ocr-setup-card__hint {{photoSetupOcrStatus === 'error' || photoSetupOcrStatus === 'empty' ? 'ocr-setup-card__hint--warn' : ''}}">
-                {{photoSetupOcrMessage}}
-              </text>
             </view>
-            <textarea
-              class="ocr-setup-textarea {{photoSetupOcrStatus === 'loading' ? 'ocr-setup-textarea--disabled' : ''}}"
-              value="{{photoSetupInput}}"
-              maxlength="-1"
-              disabled="{{photoSetupOcrStatus === 'loading'}}"
-              placeholder="{{photoSetupOcrStatus === 'loading' ? '正在识别教材内容...' : 'OCR 识别结果会显示在这里'}}"
-              bindinput="handlePhotoSetupInput"
-            />
+            <text wx:if="{{photoSetupOcrStatus === 'success'}}" class="ocr-setup-intro">可直接修改后开始默写，下滑可查看全部内容</text>
+            <view class="ocr-setup-textarea-wrap">
+              <textarea
+                class="ocr-setup-textarea {{photoSetupOcrStatus === 'loading' ? 'ocr-setup-textarea--disabled' : ''}}"
+                value="{{photoSetupInput}}"
+                maxlength="-1"
+                disabled="{{photoSetupOcrStatus === 'loading'}}"
+                show-confirm-bar="{{false}}"
+                show-scrollbar="{{false}}"
+                placeholder="{{photoSetupOcrStatus === 'loading' ? '正在识别教材内容...' : 'OCR 识别结果会显示在这里'}}"
+                bindinput="handlePhotoSetupInput"
+              />
+            </view>
           </view>
 
           <view class="ocr-setup-card ocr-setup-card--params">
@@ -145,10 +153,11 @@
                 <view class="ocr-setting-select">
                   <view class="ocr-setting-select__main">
                     <image class="ocr-setting-select__icon" src="{{icons.volumeDark}}" mode="aspectFit" />
-                    <view>
+                    <view class="ocr-setting-select__texts">
                       <text class="ocr-setting-select__label">语速</text>
                       <text class="ocr-setting-select__value">{{speechRateLabels[selectedSpeechRateIndex]}}</text>
                     </view>
+                    <image class="ocr-setting-select__caret" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
                   </view>
                 </view>
               </picker>
@@ -157,10 +166,11 @@
                 <view class="ocr-setting-select">
                   <view class="ocr-setting-select__main">
                     <image class="ocr-setting-select__icon" src="{{icons.timerDark}}" mode="aspectFit" />
-                    <view>
+                    <view class="ocr-setting-select__texts">
                       <text class="ocr-setting-select__label">间隔</text>
                       <text class="ocr-setting-select__value">{{intervalOptions[selectedIntervalIndex]}}</text>
                     </view>
+                    <image class="ocr-setting-select__caret" src="{{icons.chevronRightMuted}}" mode="aspectFit" />
                   </view>
                 </view>
               </picker>
@@ -617,7 +627,7 @@
         </view>
       </view>
 
-      <canvas canvas-id="photoCropCanvas" class="photo-crop-canvas" style="width: 1200px; height: 1600px;" />
+      <canvas canvas-id="photoCropCanvas" class="photo-crop-canvas" style="width: {{photoCropCanvasWidthPx}}px; height: {{photoCropCanvasHeightPx}}px;" />
     </view>
 
     <view wx:if="{{showAiModal}}" class="overlay" bindtap="closeAiModal">

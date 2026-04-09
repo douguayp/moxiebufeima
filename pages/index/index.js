@@ -341,6 +341,39 @@ function splitDictationInput(input) {
   });
 }
 
+function cleanPhotoDictationText(text) {
+  return String(text || "")
+    .replace(/\r/g, "\n")
+    .replace(/\n+/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function shouldKeepPhotoDictationText(text) {
+  return Boolean(text);
+}
+
+function sanitizePhotoDictationItems(items = []) {
+  return items.reduce((result, item, index) => {
+    const text = cleanPhotoDictationText(item?.text);
+
+    if (!shouldKeepPhotoDictationText(text)) {
+      return result;
+    }
+
+    const language = detectItemLanguage(text);
+
+    result.push({
+      id: item?.id || `photo-dictation-${index}`,
+      text,
+      language,
+      languageLabel: getLanguageLabel(language),
+    });
+
+    return result;
+  }, []);
+}
+
 function buildDictationEditorText(items = []) {
   return items
     .map((item) => item.text)
@@ -652,6 +685,8 @@ Page({
     photoCropRectTopPx: 0,
     photoCropRectWidthPx: 0,
     photoCropRectHeightPx: 0,
+    photoCropCanvasWidthPx: 1200,
+    photoCropCanvasHeightPx: 1600,
     photoSetupImagePath: "",
     photoSetupInput: "",
     photoSetupDetectedCount: 0,
@@ -855,7 +890,7 @@ Page({
       const ocrResult = await recognizePhotoDictation({
         imagePath,
       });
-      const playerItems = (ocrResult.items || []).filter((item) => item.text);
+      const playerItems = sanitizePhotoDictationItems(ocrResult.items || []);
       const cleanedText = buildDictationEditorText(playerItems);
       const success = playerItems.length > 0;
       const provider = ocrResult.provider || requestedProvider;
@@ -867,6 +902,7 @@ Page({
         cleanedText,
         success,
         count: playerItems.length,
+        rawCount: (ocrResult.items || []).length,
         warningMessage: ocrResult.warningMessage || "",
       });
 
@@ -1468,49 +1504,62 @@ Page({
     const sourceY = ((photoCropRectTopPx - photoCropRenderOffsetYPx) / photoCropRenderHeightPx) * photoCropImageHeight;
     const sourceWidth = (photoCropRectWidthPx / photoCropRenderWidthPx) * photoCropImageWidth;
     const sourceHeight = (photoCropRectHeightPx / photoCropRenderHeightPx) * photoCropImageHeight;
-    const outputWidth = 1200;
-    const outputHeight = Math.max(120, Math.round((photoCropRectHeightPx / photoCropRectWidthPx) * outputWidth));
-    const ctx = wx.createCanvasContext("photoCropCanvas", this);
+    const safeSourceWidth = Math.max(1, Math.round(sourceWidth));
+    const safeSourceHeight = Math.max(1, Math.round(sourceHeight));
+    const outputWidth = Math.min(1600, Math.max(1200, safeSourceWidth));
+    const outputHeight = Math.max(120, Math.round((safeSourceHeight / safeSourceWidth) * outputWidth));
 
-    ctx.clearRect(0, 0, outputWidth, outputHeight);
-    ctx.drawImage(
-      photoCropImagePath,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      0,
-      0,
-      outputWidth,
-      outputHeight
+    this.setData(
+      {
+        photoCropCanvasWidthPx: outputWidth,
+        photoCropCanvasHeightPx: outputHeight,
+      },
+      () => {
+        wx.nextTick(() => {
+          const ctx = wx.createCanvasContext("photoCropCanvas", this);
+
+          ctx.clearRect(0, 0, outputWidth, outputHeight);
+          ctx.drawImage(
+            photoCropImagePath,
+            sourceX,
+            sourceY,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            outputWidth,
+            outputHeight
+          );
+
+          ctx.draw(false, () => {
+            wx.canvasToTempFilePath(
+              {
+                canvasId: "photoCropCanvas",
+                fileType: "jpg",
+                quality: 1,
+                x: 0,
+                y: 0,
+                width: outputWidth,
+                height: outputHeight,
+                destWidth: outputWidth,
+                destHeight: outputHeight,
+                success: (result) => {
+                  this.setData({
+                    photoConfirmImagePath: result.tempFilePath,
+                    showPhotoCropSheet: false,
+                  });
+                  this.showToastMessage("已完成自由裁剪");
+                },
+                fail: () => {
+                  this.showToastMessage("裁剪生成失败，请重试");
+                },
+              },
+              this
+            );
+          });
+        });
+      }
     );
-
-    ctx.draw(false, () => {
-      wx.canvasToTempFilePath(
-        {
-          canvasId: "photoCropCanvas",
-          fileType: "jpg",
-          quality: 1,
-          x: 0,
-          y: 0,
-          width: outputWidth,
-          height: outputHeight,
-          destWidth: outputWidth,
-          destHeight: outputHeight,
-          success: (result) => {
-            this.setData({
-              photoConfirmImagePath: result.tempFilePath,
-              showPhotoCropSheet: false,
-            });
-            this.showToastMessage("已完成自由裁剪");
-          },
-          fail: () => {
-            this.showToastMessage("裁剪生成失败，请重试");
-          },
-        },
-        this
-      );
-    });
   },
 
   closePhotoRecognitionSetup() {
